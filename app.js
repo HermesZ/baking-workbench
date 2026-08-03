@@ -554,7 +554,13 @@
   /* ============ 备忘录(富文本) ============ */
   function renderMemos() {
     const kw = ($("#memo-search").value || "").trim().toLowerCase();
-    let list = state.memos;
+    // 编辑弹窗打开时,用编辑器里的实时内容刷新预览统计(勾选后立即更新)
+    let liveId = null, liveHtml = null;
+    if (!$("#memo-modal").classList.contains("hidden") && $("#memo-id").value) {
+      liveId = $("#memo-id").value;
+      liveHtml = $("#m-editor").innerHTML;
+    }
+    let list = state.memos.map((m) => (m.id === liveId ? { ...m, html: liveHtml } : m));
     if (kw) list = list.filter((m) => (m.title || "").toLowerCase().includes(kw) || stripHtml(m.html || "").toLowerCase().includes(kw));
     list = [...list].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
@@ -637,6 +643,26 @@
         document.execCommand(btn.dataset.cmd, false, null);
       }
     });
+    // 勾选事项:已勾选的「行」自动沉底 + 实时刷新卡片统计
+    $("#m-editor").addEventListener("change", (e) => {
+      if (e.target.classList && e.target.classList.contains("memo-chk")) {
+        reorderMemoByChecklist();
+        renderMemos();
+      }
+    });
+  }
+
+  /* 把包含已勾选勾选框的块移动到内容末尾(未勾选的保持原顺序在上方) */
+  function reorderMemoByChecklist() {
+    const editor = $("#m-editor");
+    const blocks = Array.from(editor.children).filter((el) => el.tagName !== "BR");
+    if (blocks.length < 2) return; // 只有一个块(未换行),无需重排
+    const todo = [];
+    const done = [];
+    blocks.forEach((b) => (b.querySelector("input.memo-chk:checked") ? done : todo).push(b));
+    if (!done.length) return;
+    blocks.forEach((b) => b.remove());
+    todo.concat(done).forEach((b) => editor.appendChild(b));
   }
 
   /* ============ 任务清单 ============ */
