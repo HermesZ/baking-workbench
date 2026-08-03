@@ -7,120 +7,157 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <h1 class="logo">🧁 烘焙工作台</h1>
-      <nav class="nav">
-        <button class="nav-btn active" data-view="dashboard"><span class="nav-ico">🏠</span><span>首页</span></button>
-        <button class="nav-btn" data-view="recipes"><span class="nav-ico">📖</span><span>配方库</span></button>
-        <button class="nav-btn" data-view="inventory"><span class="nav-ico">🧈</span><span>材料库存</span></button>
-        <button class="nav-btn" data-view="bakes"><span class="nav-ico">🎂</span><span>烘焙记录</span></button>
+  <div class="layout">
+
+    <!-- ============ 左侧导航栏 ============ -->
+    <aside class="sidebar">
+      <div class="side-logo">🧁 烘焙工作台</div>
+      <nav class="side-nav">
+        <button class="nav-btn active" data-view="dashboard"><span class="nav-ico">🏡</span><span class="nav-label">首页</span></button>
+        <button class="nav-btn" data-view="recipes"><span class="nav-ico">📖</span><span class="nav-label">配方库</span></button>
+        <button class="nav-btn" data-view="inventory"><span class="nav-ico">🧈</span><span class="nav-label">材料库存</span></button>
+        <button class="nav-btn" data-view="bakes"><span class="nav-ico">🎂</span><span class="nav-label">烘焙记录</span></button>
+        <button class="nav-btn" data-view="memos"><span class="nav-ico">📝</span><span class="nav-label">备忘录</span></button>
+        <button class="nav-btn" data-view="tasks"><span class="nav-ico">✅</span><span class="nav-label">任务清单</span></button>
+        <button class="nav-btn" data-view="gallery"><span class="nav-ico">🖼️</span><span class="nav-label">款式相册</span></button>
       </nav>
-      <div class="topbar-actions">
-        <span id="sync-dot" class="sync-dot hidden" title="同步状态"></span>
-        <button class="btn btn-ghost" id="btn-export" title="导出数据备份">导出</button>
-        <button class="btn btn-ghost" id="btn-import" title="导入数据备份">导入</button>
+      <div class="side-foot">
+        <button class="btn btn-soft" id="btn-export" title="导出数据备份">💾 导出</button>
+        <button class="btn btn-soft" id="btn-import" title="导入数据备份">📂 导入</button>
         <input type="file" id="import-file" accept=".json" hidden>
       </div>
-    </div>
-  </header>
+    </aside>
 
-  <main class="container">
-    <!-- ============ 首页 ============ -->
-    <section id="view-dashboard" class="view active">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-num" id="stat-recipes">0</div>
-          <div class="stat-label">配方总数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num" id="stat-ingredients">0</div>
-          <div class="stat-label">材料总数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num" id="stat-bakes">0</div>
-          <div class="stat-label">烘焙记录</div>
-        </div>
-        <div class="stat-card stat-warn">
-          <div class="stat-num" id="stat-expiring">0</div>
-          <div class="stat-label">即将过期(≤7天)</div>
-        </div>
-        <div class="stat-card stat-danger">
-          <div class="stat-num" id="stat-expired">0</div>
-          <div class="stat-label">已过期</div>
-        </div>
-      </div>
+    <!-- ============ 主内容区 ============ -->
+    <main class="main">
+      <header class="topbar">
+        <h1 class="page-title" id="page-title">首页</h1>
+        <span id="sync-dot" class="sync-dot hidden" title="同步状态"></span>
+      </header>
 
-      <div class="dash-grid">
-        <div class="card">
-          <div class="card-head">
-            <h2>⚠️ 保质期提醒</h2>
-            <button class="btn btn-small" data-goto="inventory">去库存管理</button>
+      <div class="content">
+
+        <!-- ============ 首页 ============ -->
+        <section id="view-dashboard" class="view active">
+          <div class="welcome">
+            <div>
+              <h2 id="welcome-greet">你好呀 👋</h2>
+              <p id="welcome-date" class="welcome-date"></p>
+            </div>
+            <span class="welcome-badge">🍰 今天也要烤出好心情</span>
           </div>
-          <div id="dash-expiry" class="list"></div>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <h2>📖 最近配方</h2>
-            <button class="btn btn-small" data-goto="recipes">去配方库</button>
+
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-ico">📖</div><div class="stat-num" id="stat-recipes">0</div><div class="stat-label">配方</div></div>
+            <div class="stat-card"><div class="stat-ico">🧈</div><div class="stat-num" id="stat-ingredients">0</div><div class="stat-label">材料</div></div>
+            <div class="stat-card"><div class="stat-ico">🎂</div><div class="stat-num" id="stat-bakes">0</div><div class="stat-label">烘焙记录</div></div>
+            <div class="stat-card"><div class="stat-ico">📝</div><div class="stat-num" id="stat-memos">0</div><div class="stat-label">备忘录</div></div>
+            <div class="stat-card"><div class="stat-ico">✅</div><div class="stat-num" id="stat-tasks">0</div><div class="stat-label">待办任务</div></div>
+            <div class="stat-card"><div class="stat-ico">🖼️</div><div class="stat-num" id="stat-gallery">0</div><div class="stat-label">款式图片</div></div>
           </div>
-          <div id="dash-recipes" class="list"></div>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <h2>🎂 最近烘焙</h2>
-            <button class="btn btn-small" data-goto="bakes">去烘焙记录</button>
+
+          <div class="dash-grid">
+            <div class="card">
+              <div class="card-head"><h2>⚠️ 保质期提醒</h2><button class="btn btn-small" data-goto="inventory">去库存管理</button></div>
+              <div id="dash-expiry" class="list"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>📅 近期任务</h2><button class="btn btn-small" data-goto="tasks">去任务清单</button></div>
+              <div id="dash-tasks" class="list"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>📖 最近配方</h2><button class="btn btn-small" data-goto="recipes">去配方库</button></div>
+              <div id="dash-recipes" class="list"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>🎂 最近烘焙</h2><button class="btn btn-small" data-goto="bakes">去烘焙记录</button></div>
+              <div id="dash-bakes" class="list"></div>
+            </div>
           </div>
-          <div id="dash-bakes" class="list"></div>
-        </div>
-      </div>
-    </section>
+        </section>
 
-    <!-- ============ 配方库 ============ -->
-    <section id="view-recipes" class="view">
-      <div class="toolbar">
-        <input type="search" id="recipe-search" class="search" placeholder="搜索配方名称或材料…">
-        <select id="recipe-cat-filter" class="select">
-          <option value="">全部分类</option>
-        </select>
-        <button class="btn btn-primary" id="btn-add-recipe">＋ 新增配方</button>
-      </div>
-      <div id="recipe-list" class="card-grid"></div>
-      <div id="recipe-empty" class="empty hidden">还没有配方,点击「新增配方」开始记录你的第一个作品吧 🍞</div>
-    </section>
+        <!-- ============ 配方库 ============ -->
+        <section id="view-recipes" class="view">
+          <div class="toolbar">
+            <input type="search" id="recipe-search" class="search" placeholder="搜索配方名称或材料…">
+            <select id="recipe-cat-filter" class="select"><option value="">全部分类</option></select>
+            <button class="btn btn-primary" id="btn-add-recipe">＋ 新增配方</button>
+          </div>
+          <div id="recipe-list" class="card-grid"></div>
+          <div id="recipe-empty" class="empty hidden">还没有配方,点击「新增配方」开始记录你的第一个作品吧 🍞</div>
+        </section>
 
-    <!-- ============ 材料库存 ============ -->
-    <section id="view-inventory" class="view">
-      <div class="toolbar">
-        <input type="search" id="ing-search" class="search" placeholder="搜索材料名称…">
-        <select id="ing-status-filter" class="select">
-          <option value="">全部状态</option>
-          <option value="ok">正常</option>
-          <option value="expiring">即将过期</option>
-          <option value="expired">已过期</option>
-        </select>
-        <button class="btn btn-primary" id="btn-add-ing">+ 新增材料</button>
-      </div>
-      <div id="ing-list" class="card-grid"></div>
-      <div id="ing-empty" class="empty hidden">暂无材料记录,点击右上角添加 🧈</div>
-    </section>
+        <!-- ============ 材料库存 ============ -->
+        <section id="view-inventory" class="view">
+          <div class="toolbar">
+            <input type="search" id="ing-search" class="search" placeholder="搜索材料名称…">
+            <select id="ing-status-filter" class="select">
+              <option value="">全部状态</option>
+              <option value="ok">正常</option>
+              <option value="expiring">即将过期</option>
+              <option value="expired">已过期</option>
+            </select>
+            <button class="btn btn-primary" id="btn-add-ing">+ 新增材料</button>
+          </div>
+          <div id="ing-list" class="card-grid"></div>
+          <div id="ing-empty" class="empty hidden">暂无材料记录,点击右上角添加 🧈</div>
+        </section>
 
-    <!-- ============ 烘焙记录 ============ -->
-    <section id="view-bakes" class="view">
-      <div class="toolbar">
-        <input type="search" id="bake-search" class="search" placeholder="搜索烘焙记录…">
-        <select id="bake-result-filter" class="select">
-          <option value="">全部结果</option>
-          <option value="成功">成功</option>
-          <option value="一般">一般</option>
-          <option value="失败">失败</option>
-        </select>
-        <button class="btn btn-primary" id="btn-add-bake">+ 新增记录</button>
+        <!-- ============ 烘焙记录 ============ -->
+        <section id="view-bakes" class="view">
+          <div class="toolbar">
+            <input type="search" id="bake-search" class="search" placeholder="搜索烘焙记录…">
+            <select id="bake-result-filter" class="select">
+              <option value="">全部结果</option>
+              <option value="成功">成功</option>
+              <option value="一般">一般</option>
+              <option value="失败">失败</option>
+            </select>
+            <button class="btn btn-primary" id="btn-add-bake">+ 新增记录</button>
+          </div>
+          <div id="bake-list" class="card-grid"></div>
+          <div id="bake-empty" class="empty hidden">还没有烘焙记录,点击右上角记录你的第一次烘焙 🎂</div>
+        </section>
+
+        <!-- ============ 备忘录 ============ -->
+        <section id="view-memos" class="view">
+          <div class="toolbar">
+            <input type="search" id="memo-search" class="search" placeholder="搜索备忘录…">
+            <button class="btn btn-primary" id="btn-add-memo">＋ 新建备忘录</button>
+          </div>
+          <div id="memo-list" class="memo-grid"></div>
+          <div id="memo-empty" class="empty hidden">还没有备忘录,随手记下灵感 ✨</div>
+        </section>
+
+        <!-- ============ 任务清单 ============ -->
+        <section id="view-tasks" class="view">
+          <div class="toolbar">
+            <div class="seg" id="task-tabs">
+              <button class="seg-btn active" data-task-tab="day">☀️ 日任务</button>
+              <button class="seg-btn" data-task-tab="month">📆 月任务</button>
+            </div>
+            <input type="date" id="task-date" class="select" title="查看某天的日任务">
+            <input type="month" id="task-month" class="select hidden" title="查看某月的月任务">
+            <button class="btn btn-primary" id="btn-add-task">＋ 新增任务</button>
+          </div>
+          <div id="task-list"></div>
+          <div id="task-empty" class="empty hidden">这个时间段没有任务,放松一下吧 🌸</div>
+        </section>
+
+        <!-- ============ 款式相册 ============ -->
+        <section id="view-gallery" class="view">
+          <div class="toolbar">
+            <select id="gallery-cat-filter" class="select"><option value="">全部分类</option></select>
+            <input type="text" id="gallery-new-cat" class="search search-inline" placeholder="新增分类,回车确认" maxlength="8">
+            <button class="btn btn-primary" id="btn-add-photo">📷 上传款式图</button>
+          </div>
+          <div id="gallery-grid" class="gallery-grid"></div>
+          <div id="gallery-empty" class="empty hidden">还没有款式图,上传你喜欢的蛋糕款式吧 🍰</div>
+        </section>
+
       </div>
-      <div id="bake-list" class="card-grid"></div>
-      <div id="bake-empty" class="empty hidden">还没有烘焙记录,点击右上角记录你的第一次烘焙 🎂</div>
-    </section>
-  </main>
+    </main>
+  </div>
 
   <!-- ============ 配方表单弹窗 ============ -->
   <div class="modal-mask hidden" id="recipe-modal">
@@ -134,10 +171,7 @@
         <div class="form-row">
           <label>配方名称 *<input type="text" id="r-name" required placeholder="如:法式可颂"></label>
           <label>分类
-            <select id="r-category">
-              <option>面包</option><option>蛋糕</option><option>饼干</option>
-              <option>甜点</option><option>其他</option>
-            </select>
+            <select id="r-category"><option>面包</option><option>蛋糕</option><option>饼干</option><option>甜点</option><option>其他</option></select>
           </label>
         </div>
         <div class="form-row">
@@ -149,7 +183,7 @@
           <label class="full">描述<textarea id="r-desc" rows="2" placeholder="一句话描述这款作品"></textarea></label>
         </div>
         <fieldset class="ingredients-field">
-          <legend>材料清单</legend>
+          <legend>材料清单 <span class="hint">(材料名会与库存自动匹配)</span></legend>
           <div id="recipe-ingredients"></div>
           <button type="button" class="btn btn-small" id="btn-add-ing-row">+ 添加材料行</button>
         </fieldset>
@@ -169,7 +203,7 @@
     </div>
   </div>
 
-  <!-- ============ 配方详情弹窗 ============ -->
+  <!-- ============ 配方详情弹窗(联动库存) ============ -->
   <div class="modal-mask hidden" id="recipe-detail-modal">
     <div class="modal">
       <div class="modal-head">
@@ -197,19 +231,12 @@
         <div class="form-row">
           <label>材料名称 *<input type="text" id="i-name" required placeholder="如:无盐黄油"></label>
           <label>分类
-            <select id="i-category">
-              <option>面粉</option><option>糖</option><option>油脂</option><option>乳制品</option>
-              <option>蛋</option><option>酵母/膨松剂</option><option>巧克力</option><option>水果</option><option>其他</option>
-            </select>
+            <select id="i-category"><option>面粉</option><option>糖</option><option>油脂</option><option>乳制品</option><option>蛋</option><option>酵母/膨松剂</option><option>巧克力</option><option>水果</option><option>其他</option></select>
           </label>
         </div>
         <div class="form-row">
           <label>数量<input type="text" id="i-qty" placeholder="如:200g / 1盒"></label>
-          <label>存储方式
-            <select id="i-storage">
-              <option>常温</option><option>冷藏</option><option>冷冻</option>
-            </select>
-          </label>
+          <label>存储方式<select id="i-storage"><option>常温</option><option>冷藏</option><option>冷冻</option></select></label>
         </div>
         <div class="form-row">
           <label>购买日期<input type="date" id="i-bought"></label>
@@ -240,19 +267,8 @@
           <label>制作日期 *<input type="date" id="b-date" required></label>
         </div>
         <div class="form-row">
-          <label>关联配方
-            <select id="b-recipe">
-              <option value="">(不关联)</option>
-            </select>
-          </label>
-          <label>结果
-            <select id="b-result">
-              <option value="">未评价</option>
-              <option>成功</option>
-              <option>一般</option>
-              <option>失败</option>
-            </select>
-          </label>
+          <label>关联配方<select id="b-recipe"><option value="">(不关联)</option></select></label>
+          <label>结果<select id="b-result"><option value="">未评价</option><option>成功</option><option>一般</option><option>失败</option></select></label>
         </div>
         <div class="form-row">
           <label class="full">备注<textarea id="b-notes" rows="3" placeholder="口感、改进点、下次注意…"></textarea></label>
@@ -265,7 +281,113 @@
     </div>
   </div>
 
-  <!-- 确认删除弹窗 -->
+  <!-- ============ 备忘录编辑弹窗(富文本) ============ -->
+  <div class="modal-mask hidden" id="memo-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="memo-modal-title">新建备忘录</h2>
+        <button class="modal-close" data-close="memo-modal">×</button>
+      </div>
+      <div class="memo-form">
+        <input type="hidden" id="memo-id">
+        <input type="text" id="m-title" class="memo-title-input" placeholder="备忘录标题…">
+        <div class="memo-toolbar" id="memo-toolbar">
+          <button type="button" class="mt-btn" data-cmd="bold" title="加粗"><b>B</b></button>
+          <button type="button" class="mt-btn" data-cmd="italic" title="斜体"><i>I</i></button>
+          <button type="button" class="mt-btn" data-cmd="underline" title="下划线"><u>U</u></button>
+          <button type="button" class="mt-btn" data-cmd="strikeThrough" title="删除线"><s>S</s></button>
+          <span class="mt-sep"></span>
+          <button type="button" class="mt-color" data-color="#d96a8e" title="粉色" style="background:#d96a8e"></button>
+          <button type="button" class="mt-color" data-color="#e05b4a" title="红色" style="background:#e05b4a"></button>
+          <button type="button" class="mt-color" data-color="#d99a2b" title="橙色" style="background:#d99a2b"></button>
+          <button type="button" class="mt-color" data-color="#3f9a5a" title="绿色" style="background:#3f9a5a"></button>
+          <button type="button" class="mt-color" data-color="#5a7fd9" title="蓝色" style="background:#5a7fd9"></button>
+          <button type="button" class="mt-color" data-color="#4a3728" title="深棕" style="background:#4a3728"></button>
+          <span class="mt-sep"></span>
+          <button type="button" class="mt-btn" data-cmd="chk" title="插入勾选框">☑️</button>
+          <button type="button" class="mt-btn" data-cmd="removeFormat" title="清除格式">⌫</button>
+        </div>
+        <div class="memo-editor" id="m-editor" contenteditable="true" placeholder="写点什么…"></div>
+        <div class="memo-tip">💡 勾选框:先点工具栏 ☑️ 再输入内容,或选中文字后插入</div>
+        <div class="modal-foot">
+          <button type="button" class="btn" data-close="memo-modal">取消</button>
+          <button type="button" class="btn btn-primary" id="memo-save">保存备忘录</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 任务编辑弹窗 ============ -->
+  <div class="modal-mask hidden" id="task-modal">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2 id="task-modal-title">新增任务</h2>
+        <button class="modal-close" data-close="task-modal">×</button>
+      </div>
+      <form id="task-form">
+        <input type="hidden" id="task-id">
+        <div class="form-row">
+          <label class="full">任务内容 *<input type="text" id="t-title" required placeholder="如:给蛋糕店下单奶油"></label>
+        </div>
+        <div class="form-row">
+          <label>类型
+            <select id="t-type"><option value="day">日任务</option><option value="month">月任务</option></select>
+          </label>
+          <label id="t-date-label">日期<input type="date" id="t-date"></label>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn" data-close="task-modal">取消</button>
+          <button type="submit" class="btn btn-primary">保存任务</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ 上传款式图弹窗 ============ -->
+  <div class="modal-mask hidden" id="gallery-modal">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2>上传款式图</h2>
+        <button class="modal-close" data-close="gallery-modal">×</button>
+      </div>
+      <div class="gallery-form">
+        <div class="form-row">
+          <label class="full">款式名称<input type="text" id="g-title" placeholder="如:草莓奶油蛋糕"></label>
+        </div>
+        <div class="form-row">
+          <label class="full">分类
+            <select id="g-cat"><option value="">(未分类)</option></select>
+          </label>
+        </div>
+        <label class="upload-box" id="upload-box">
+          <input type="file" id="g-file" accept="image/*" hidden>
+          <span id="upload-text">📷 点击选择图片</span>
+          <img id="upload-preview" class="upload-preview hidden" alt="预览">
+        </label>
+        <div class="modal-foot">
+          <button type="button" class="btn" data-close="gallery-modal">取消</button>
+          <button type="button" class="btn btn-primary" id="gallery-save">保存款式</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 大图查看弹窗 ============ -->
+  <div class="modal-mask hidden" id="gallery-view-modal">
+    <div class="modal modal-view">
+      <div class="modal-head">
+        <h2 id="gv-title"></h2>
+        <button class="modal-close" data-close="gallery-view-modal">×</button>
+      </div>
+      <div class="gv-body"><img id="gv-img" alt="款式图"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close="gallery-view-modal">关闭</button>
+        <button type="button" class="btn btn-danger" id="gv-delete">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 确认删除弹窗 ============ -->
   <div class="modal-mask hidden" id="confirm-modal">
     <div class="modal modal-sm">
       <div class="modal-head"><h2>确认删除</h2></div>

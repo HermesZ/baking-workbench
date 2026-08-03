@@ -1,77 +1,84 @@
-﻿/* ============ 烘焙工作台 逻辑 ============ */
+﻿/* ============ 烘焙工作台 逻辑 v2 ============ */
 (function () {
   "use strict";
 
   const STORE_KEY = "baking-workbench-v1";
   const EXPIRING_DAYS = 7; // 提前多少天提醒
-  const SERVER_MODE = location.protocol.startsWith("http"); // 通过服务器打开(http://),启用数据同步
-  let syncOnline = null; // null=本地模式 / true=已同步 / false=同步失败
-  let serverAvailable = false; // 后端是否可用(纯静态托管时自动降级为本地模式)
+  const SERVER_MODE = location.protocol.startsWith("http");
+  let serverAvailable = false;
 
   /* ---------- 数据 ---------- */
   let state = load();
 
   function load() {
+    const defaults = () => ({
+      recipes: [], ingredients: [], bakes: [],
+      memos: [], tasks: [],
+      galleryItems: [], galleryCats: ["蛋糕", "慕斯", "饼干", "面包", "其他"]
+    });
     try {
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
-        const data = JSON.parse(raw);
-        return { recipes: data.recipes || [], ingredients: data.ingredients || [], bakes: data.bakes || [] };
+        const d = JSON.parse(raw);
+        const base = defaults();
+        return {
+          recipes: d.recipes || base.recipes,
+          ingredients: d.ingredients || base.ingredients,
+          bakes: d.bakes || base.bakes,
+          memos: d.memos || base.memos,
+          tasks: d.tasks || base.tasks,
+          galleryItems: d.galleryItems || base.galleryItems,
+          galleryCats: (d.galleryCats && d.galleryCats.length ? d.galleryCats : base.galleryCats)
+        };
       }
     } catch (e) { console.warn("读取本地数据失败", e); }
-    return { recipes: [], ingredients: [], bakes: [] };
+    return defaults();
   }
 
   function save() {
-    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    } catch (e) {
+      toast("⚠️ 存储空间不足,请导出备份后删除一些相册图片");
+      return;
+    }
     if (SERVER_MODE && serverAvailable) {
       fetch("/api/data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(state)
-      })
-        .then((r) => { if (!r.ok) throw new Error("http " + r.status); setSyncStatus(true); })
-        .catch(() => { serverAvailable = false; setSyncStatus(false); });
+      }).then((r) => { if (!r.ok) throw new Error("http " + r.status); })
+        .catch(() => { serverAvailable = false; });
     }
   }
 
   /* ---------- 服务器数据同步 ---------- */
-  function setSyncStatus(ok) {
-    const dot = $("#sync-dot");
-    if (!dot || !SERVER_MODE) return;
-    dot.classList.remove("sync-ok", "sync-fail");
-    if (ok) { // 后端可用:显示绿点
-      dot.classList.remove("hidden");
-      dot.classList.add("sync-ok");
-      dot.title = "数据已同步到服务器";
-    } else { // 后端不可用:静默降级为本地模式,不打扰
-      serverAvailable = false;
-      dot.classList.add("hidden");
-    }
-  }
-
   function syncFromServer() {
     if (!SERVER_MODE) return;
     fetch("/api/data", { cache: "no-store" })
       .then((r) => { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
       .then((data) => {
         serverAvailable = true;
-        if (data && (data.recipes || data.ingredients || data.bakes)) {
+        if (data && (data.recipes || data.ingredients || data.memos || data.tasks)) {
+          const base = load();
           state = {
-            recipes: data.recipes || [],
-            ingredients: data.ingredients || [],
-            bakes: data.bakes || []
+            recipes: data.recipes || base.recipes,
+            ingredients: data.ingredients || base.ingredients,
+            bakes: data.bakes || base.bakes,
+            memos: data.memos || base.memos,
+            tasks: data.tasks || base.tasks,
+            galleryItems: data.galleryItems || base.galleryItems,
+            galleryCats: (data.galleryCats && data.galleryCats.length ? data.galleryCats : base.galleryCats)
           };
-          setSyncStatus(true);
           fillCategoryFilter();
+          fillGalleryCatOptions();
           switchView("dashboard");
           toast("已载入共享数据");
         } else {
-          setSyncStatus(true);
-          save(); // 首次打开,把本地数据推送到服务器
+          save();
         }
       })
-      .catch(() => setSyncStatus(false));
+      .catch(() => { /* 纯静态托管:静默降级为本地模式 */ });
   }
 
   function uid() {
@@ -86,12 +93,17 @@
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
+    })[c]);
   }
 
   function todayStr() {
     const d = new Date();
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  function thisMonthStr() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
   }
 
   function daysUntil(dateStr) {
@@ -117,15 +129,24 @@
     el._t = setTimeout(() => el.classList.add("hidden"), 2600);
   }
 
+  const VIEW_TITLES = {
+    dashboard: "首页", recipes: "配方库", inventory: "材料库存", bakes: "烘焙记录",
+    memos: "备忘录", tasks: "任务清单", gallery: "款式相册"
+  };
+
   /* ---------- 视图切换 ---------- */
   function switchView(name) {
     $$(".view").forEach((v) => v.classList.remove("active"));
     $("#view-" + name).classList.add("active");
     $$(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
+    $("#page-title").textContent = VIEW_TITLES[name] || "";
     if (name === "dashboard") renderDashboard();
     if (name === "recipes") renderRecipes();
     if (name === "inventory") renderInventory();
     if (name === "bakes") renderBakes();
+    if (name === "memos") renderMemos();
+    if (name === "tasks") renderTasks();
+    if (name === "gallery") renderGallery();
   }
 
   /* ---------- 首页 ---------- */
@@ -133,61 +154,74 @@
     const ings = state.ingredients;
     const expiring = ings.filter((i) => expiryStatus(i.expiryDate).key === "expiring");
     const expired = ings.filter((i) => expiryStatus(i.expiryDate).key === "expired");
+    const pendingTasks = state.tasks.filter((t) => !t.done);
+
+    const greet = $("#welcome-greet");
+    const h = new Date().getHours();
+    greet.textContent = (h < 6 ? "夜深了,早点休息 🌙" : h < 11 ? "早上好呀 ☀️" : h < 14 ? "中午好 🍚" : h < 18 ? "下午好 🍵" : "晚上好 🌙") + ",今天想做点什么?";
+    $("#welcome-date").textContent = new Date().toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
 
     $("#stat-recipes").textContent = state.recipes.length;
     $("#stat-ingredients").textContent = ings.length;
     $("#stat-bakes").textContent = state.bakes.length;
-    $("#stat-expiring").textContent = expiring.length;
-    $("#stat-expired").textContent = expired.length;
+    $("#stat-memos").textContent = state.memos.length;
+    $("#stat-tasks").textContent = pendingTasks.length;
+    $("#stat-gallery").textContent = state.galleryItems.length;
 
-    // 保质期提醒列表(过期在前,按剩余天数升序)
+    // 保质期提醒
     const warnList = [...expired, ...expiring].sort((a, b) => (daysUntil(a.expiryDate) || 0) - (daysUntil(b.expiryDate) || 0));
     const dashExpiry = $("#dash-expiry");
     if (warnList.length === 0) {
-      dashExpiry.innerHTML = '<div class="empty" style="padding:16px 0">🎉 所有材料都在保质期内</div>';
+      dashExpiry.innerHTML = '<div class="empty" style="padding:14px 0">🎉 所有材料都在保质期内</div>';
     } else {
-      dashExpiry.innerHTML = warnList.map((i) => {
+      dashExpiry.innerHTML = warnList.slice(0, 6).map((i) => {
         const st = expiryStatus(i.expiryDate);
-        return `<div class="row-item">
-          <span class="row-title">${esc(i.name)}</span>
-          <span><span class="tag ${st.cls}">${st.label}</span> <span class="days">${esc(i.storage || "")}</span></span>
-        </div>`;
+        return `<div class="row-item"><span class="row-title">${esc(i.name)}</span>
+          <span><span class="tag ${st.cls}">${st.label}</span></span></div>`;
+      }).join("") + (warnList.length > 6 ? `<div class="empty" style="padding:6px 0">…还有 ${warnList.length - 6} 项</div>` : "");
+    }
+
+    // 近期任务:今天+逾期+明天,未完成优先
+    const soonTasks = pendingTasks
+      .filter((t) => (t.type === "day" && (daysUntil(t.date) || 0) <= 1) || (t.type === "month" && t.month === thisMonthStr()))
+      .sort((a, b) => {
+        const da = a.type === "day" ? daysUntil(a.date) || 0 : 0;
+        const db = b.type === "day" ? daysUntil(b.date) || 0 : 0;
+        return da - db;
+      }).slice(0, 5);
+    const dashTasks = $("#dash-tasks");
+    if (soonTasks.length === 0) {
+      dashTasks.innerHTML = '<div class="empty" style="padding:14px 0">今天没有待办任务,轻松一下 🌸</div>';
+    } else {
+      dashTasks.innerHTML = soonTasks.map((t) => {
+        const tag = t.type === "day"
+          ? `<span class="tag ${(daysUntil(t.date) || 0) < 0 ? "tag-danger" : ""}">${esc(t.date || "")}</span>`
+          : `<span class="tag">${esc(t.month || "")} 月任务</span>`;
+        return `<div class="row-item"><span class="row-title">${esc(t.title)}</span>${tag}</div>`;
       }).join("");
     }
 
     // 最近配方
     const recent = [...state.recipes].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 5);
-    const dashRecipes = $("#dash-recipes");
-    if (recent.length === 0) {
-      dashRecipes.innerHTML = '<div class="empty" style="padding:10px 0">还没有配方</div>';
-    } else {
-      dashRecipes.innerHTML = recent.map((r) =>
-        `<div class="row-item">
-          <span class="row-title">${esc(r.name)}</span>
-          <span class="tag">${esc(r.category || "其他")}</span>
-        </div>`
-      ).join("");
-    }
+    $("#dash-recipes").innerHTML = recent.length === 0
+      ? '<div class="empty" style="padding:10px 0">还没有配方</div>'
+      : recent.map((r) => `<div class="row-item"><span class="row-title">${esc(r.name)}</span>
+          <span class="tag">${esc(r.category || "其他")}</span></div>`).join("");
 
     // 最近烘焙
     const recentBakes = [...state.bakes].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 5);
-    const dashBakes = $("#dash-bakes");
-    if (recentBakes.length === 0) {
-      dashBakes.innerHTML = '<div class="empty" style="padding:10px 0">还没有烘焙记录</div>';
-    } else {
-      dashBakes.innerHTML = recentBakes.map((b) => {
+    $("#dash-bakes").innerHTML = recentBakes.length === 0
+      ? '<div class="empty" style="padding:10px 0">还没有烘焙记录</div>'
+      : recentBakes.map((b) => {
         const resultTag = b.result
           ? `<span class="tag ${b.result === "成功" ? "tag-ok" : b.result === "失败" ? "tag-danger" : "tag-warn"}">${esc(b.result)}</span>`
           : "";
-        return `<div class="row-item">
-          <span class="row-title">${esc(b.name)}</span>
-          <span>${esc(b.date || "")} ${resultTag}</span>
-        </div>`;
+        return `<div class="row-item"><span class="row-title">${esc(b.name)}</span>
+          <span>${esc(b.date || "")} ${resultTag}</span></div>`;
       }).join("");
-    }
   }
 
-  /* ---------- 配方库 ---------- */
+  /* ============ 配方库 ============ */
   function renderRecipes() {
     const kw = ($("#recipe-search").value || "").trim().toLowerCase();
     const cat = $("#recipe-cat-filter").value;
@@ -204,9 +238,10 @@
     const box = $("#recipe-list");
     $("#recipe-empty").classList.toggle("hidden", list.length > 0);
     box.innerHTML = list.map((r) => {
-      const ings = (r.ingredients || []).map((ig) =>
-        `<div class="ing-row"><span>${esc(ig.name)}</span><span>${esc(ig.amount || "")} ${esc(ig.unit || "")}</span></div>`
-      ).join("");
+      const ings = (r.ingredients || []).map((ig) => {
+        const st = stockStatusFor(ig.name);
+        return `<div class="ing-row"><span>${esc(ig.name)} <span class="stock ${st.cls}" title="${esc(st.tip)}">${esc(st.label)}</span></span><span>${esc(ig.amount || "")} ${esc(ig.unit || "")}</span></div>`;
+      }).join("");
       return `<div class="item-card clickable" data-open-recipe="${r.id}" title="单击查看详情">
         <h3 class="item-title">${esc(r.name)} <span class="tag">${esc(r.category || "其他")}</span></h3>
         <div class="item-meta">
@@ -215,7 +250,7 @@
           ${r.time ? `<span>⏱ ${esc(r.time)}</span>` : ""}
         </div>
         ${r.desc ? `<div class="item-body">${esc(r.desc)}</div>` : ""}
-        <div>${ings}</div>
+        ${ings ? `<div>${ings}</div>` : ""}
         <div class="item-actions">
           <button class="btn btn-small" data-edit-recipe="${r.id}">编辑</button>
           <button class="btn btn-small btn-danger" data-del-recipe="${r.id}">删除</button>
@@ -228,9 +263,35 @@
     const cats = [...new Set(state.recipes.map((r) => r.category).filter(Boolean))];
     const sel = $("#recipe-cat-filter");
     const cur = sel.value;
-    sel.innerHTML = '<option value="">全部分类</option>' +
-      cats.map((c) => `<option>${esc(c)}</option>`).join("");
+    sel.innerHTML = '<option value="">全部分类</option>' + cats.map((c) => `<option>${esc(c)}</option>`).join("");
     sel.value = cur;
+  }
+
+  function fillIngDatalist() {
+    let dl = $("#ing-datalist");
+    if (!dl) {
+      dl = document.createElement("datalist");
+      dl.id = "ing-datalist";
+      document.body.appendChild(dl);
+    }
+    dl.innerHTML = state.ingredients.map((i) => `<option value="${esc(i.name)}"></option>`).join("");
+  }
+
+  /* 配方材料 ↔ 库存联动 */
+  function stockStatusFor(name) {
+    const n = (name || "").trim();
+    if (!n) return { cls: "stock-none", label: "—", tip: "" };
+    const exact = state.ingredients.filter((i) => i.name.trim() === n);
+    const loose = state.ingredients.filter((i) => i.name.trim() !== n && (i.name.includes(n) || n.includes(i.name)));
+    const list = exact.length ? exact : loose;
+    if (!list.length) return { cls: "stock-none", label: "无库存", tip: "库存中没有找到「" + n + "」,建议先去库存页添加" };
+    const sorted = [...list].sort((a, b) => (daysUntil(a.expiryDate) ?? 999) - (daysUntil(b.expiryDate) ?? 999));
+    const worst = sorted[0];
+    const st = expiryStatus(worst.expiryDate);
+    const qty = worst.qty ? `(${worst.qty})` : "";
+    if (st.key === "expired") return { cls: "stock-danger", label: "⚠ 过期" + qty, tip: "「" + worst.name + "」已过期 " + -daysUntil(worst.expiryDate) + " 天,记得处理" };
+    if (st.key === "expiring") return { cls: "stock-warn", label: "⚠ 临期" + qty, tip: "「" + worst.name + "」剩 " + daysUntil(worst.expiryDate) + " 天,尽快用完" };
+    return { cls: "stock-ok", label: "✓ 有货" + qty, tip: "「" + worst.name + "」库存正常" };
   }
 
   /* ---------- 配方表单 ---------- */
@@ -245,12 +306,13 @@
     $("#r-desc").value = recipe ? recipe.desc : "";
     $("#r-steps").value = recipe ? recipe.steps : "";
     $("#r-notes").value = recipe ? recipe.notes : "";
+    fillIngDatalist();
     renderIngRows(recipe ? recipe.ingredients : [{ name: "", amount: "", unit: "" }]);
     $("#recipe-modal").classList.remove("hidden");
     $("#r-name").focus();
   }
 
-  /* ---------- 配方详情 ---------- */
+  /* ---------- 配方详情(联动库存) ---------- */
   function openRecipeDetail(id) {
     const r = state.recipes.find((x) => x.id === id);
     if (!r) return;
@@ -260,11 +322,14 @@
 
     const ings = (r.ingredients || []).length
       ? `<table class="detail-ing-table">
-          <thead><tr><th>材料</th><th>用量</th></tr></thead>
-          <tbody>${(r.ingredients || []).map((ig) =>
-            `<tr><td>${esc(ig.name)}</td><td>${esc(ig.amount || "")} ${esc(ig.unit || "")}</td></tr>`
-          ).join("")}</tbody>
-        </table>`
+          <thead><tr><th>材料</th><th>用量</th><th>库存</th></tr></thead>
+          <tbody>${(r.ingredients || []).map((ig) => {
+            const st = stockStatusFor(ig.name);
+            return `<tr><td>${esc(ig.name)}</td><td>${esc(ig.amount || "")} ${esc(ig.unit || "")}</td>
+              <td><span class="stock ${st.cls}" title="${esc(st.tip)}">${esc(st.label)}</span></td></tr>`;
+          }).join("")}</tbody>
+        </table>
+        <div class="hint" style="margin-top:6px">💡 材料状态与「材料库存」自动联动,库存不足或过期会标红提醒</div>`
       : '<div class="detail-empty">未填写材料清单</div>';
 
     const steps = (r.steps || "").split("\n").map((s) => s.trim()).filter(Boolean);
@@ -291,7 +356,7 @@
     const box = $("#recipe-ingredients");
     box.innerHTML = rows.map((ig, idx) => `
       <div class="ing-input-row">
-        <input type="text" class="ing-name" placeholder="材料名" value="${esc(ig.name)}">
+        <input type="text" class="ing-name" list="ing-datalist" placeholder="材料名" value="${esc(ig.name)}">
         <input type="text" class="amount" placeholder="用量" value="${esc(ig.amount)}">
         <input type="text" class="unit" placeholder="单位" value="${esc(ig.unit)}">
         <button type="button" class="ing-del" data-idx="${idx}" title="删除此行">×</button>
@@ -336,7 +401,7 @@
     renderRecipes();
   }
 
-  /* ---------- 材料库存 ---------- */
+  /* ============ 材料库存 ============ */
   function renderInventory() {
     const kw = ($("#ing-search").value || "").trim().toLowerCase();
     const st = $("#ing-status-filter").value;
@@ -408,13 +473,12 @@
     renderInventory();
   }
 
-  /* ---------- 烘焙记录 ---------- */
+  /* ============ 烘焙记录 ============ */
   function fillBakeRecipeSelect() {
     const sel = $("#b-recipe");
     const cur = sel.value;
     const recipes = [...state.recipes].sort((a, b) => a.name.localeCompare(b.name));
-    sel.innerHTML = '<option value="">(不关联)</option>' +
-      recipes.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
+    sel.innerHTML = '<option value="">(不关联)</option>' + recipes.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
     sel.value = cur;
   }
 
@@ -487,6 +551,273 @@
     renderBakes();
   }
 
+  /* ============ 备忘录(富文本) ============ */
+  function renderMemos() {
+    const kw = ($("#memo-search").value || "").trim().toLowerCase();
+    let list = state.memos;
+    if (kw) list = list.filter((m) => (m.title || "").toLowerCase().includes(kw) || stripHtml(m.html || "").toLowerCase().includes(kw));
+    list = [...list].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    const box = $("#memo-list");
+    $("#memo-empty").classList.toggle("hidden", list.length > 0);
+    box.innerHTML = list.map((m) => `
+      <div class="memo-card" data-open-memo="${m.id}">
+        <h3>${esc(m.title || "(无标题)")}</h3>
+        <div class="memo-preview">${previewHtml(m.html || "")}</div>
+        <div class="memo-time">${fmtTime(m.updatedAt || m.createdAt)}</div>
+        <div class="memo-actions">
+          <button class="btn btn-small" data-edit-memo="${m.id}">编辑</button>
+          <button class="btn btn-small btn-danger" data-del-memo="${m.id}">删除</button>
+        </div>
+      </div>`).join("");
+  }
+
+  function stripHtml(html) {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return (div.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function previewHtml(html) {
+    const text = stripHtml(html);
+    const done = (html.match(/<input[^>]*checked/g) || []).length;
+    const total = (html.match(/<input[^>]*class="[^"]*memo-chk/g) || []).length;
+    let out = text.length > 80 ? text.slice(0, 80) + "…" : (text || "空内容");
+    if (total > 0) out += ` <span class="tag ${done === total ? "tag-ok" : ""}">☑ ${done}/${total}</span>`;
+    return out;
+  }
+
+  function fmtTime(ts) {
+    if (!ts) return "";
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function openMemoModal(memo) {
+    $("#memo-modal-title").textContent = memo ? "编辑备忘录" : "新建备忘录";
+    $("#memo-id").value = memo ? memo.id : "";
+    $("#m-title").value = memo ? memo.title : "";
+    $("#m-editor").innerHTML = memo ? (memo.html || "") : "";
+    $("#memo-modal").classList.remove("hidden");
+    setTimeout(() => { (memo ? $("#m-editor") : $("#m-title")).focus(); }, 60);
+  }
+
+  function saveMemo() {
+    const id = $("#memo-id").value;
+    const title = $("#m-title").value.trim();
+    const html = $("#m-editor").innerHTML.trim();
+    if (!title && !stripHtml(html)) { toast("写点内容再保存吧"); return; }
+    const now = Date.now();
+    if (id) {
+      const idx = state.memos.findIndex((m) => m.id === id);
+      if (idx >= 0) state.memos[idx] = { ...state.memos[idx], title, html, updatedAt: now };
+      toast("备忘录已更新");
+    } else {
+      state.memos.push({ id: uid(), title, html, createdAt: now, updatedAt: now });
+      toast("备忘录已保存");
+    }
+    save();
+    $("#memo-modal").classList.add("hidden");
+    renderMemos();
+  }
+
+  function initMemoToolbar() {
+    $("#memo-toolbar").addEventListener("click", (e) => {
+      const btn = e.target.closest(".mt-btn, .mt-color");
+      if (!btn) return;
+      e.preventDefault();
+      const editor = $("#m-editor");
+      editor.focus();
+      if (btn.dataset.color) {
+        document.execCommand("foreColor", false, btn.dataset.color);
+      } else if (btn.dataset.cmd === "chk") {
+        document.execCommand("insertHTML", false, '<input type="checkbox" class="memo-chk" contenteditable="false"> ');
+      } else {
+        document.execCommand(btn.dataset.cmd, false, null);
+      }
+    });
+  }
+
+  /* ============ 任务清单 ============ */
+  let taskTab = "day";
+
+  function renderTasks() {
+    const list = [...state.tasks].sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1; // 未完成在前
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
+
+    const box = $("#task-list");
+    const empty = $("#task-empty");
+    if (taskTab === "day") {
+      const date = $("#task-date").value || todayStr();
+      const today = list.filter((t) => t.type === "day" && t.date === date);
+      const overdue = list.filter((t) => t.type === "day" && !t.done && (daysUntil(t.date) || 0) < 0 && t.date !== date);
+      const upcoming = list.filter((t) => t.type === "day" && t.date !== date && !(t.date < todayStr() && !t.done));
+      const all = (overdue.length ? [{ title: "已逾期", items: overdue }] : [])
+        .concat(today.length ? [{ title: `${date} 的任务`, items: today }] : [])
+        .concat(upcoming.length ? [{ title: "其他日任务", items: upcoming }] : []);
+      empty.classList.toggle("hidden", all.length > 0);
+      box.innerHTML = all.map((g) => `
+        <div class="task-group">
+          <div class="task-group-title"><span class="dot"></span>${esc(g.title)}</div>
+          ${g.items.map(taskItemHtml).join("")}
+        </div>`).join("");
+    } else {
+      const month = $("#task-month").value || thisMonthStr();
+      const items = list.filter((t) => t.type === "month" && t.month === month);
+      empty.classList.toggle("hidden", items.length > 0);
+      box.innerHTML = `<div class="task-group">
+        <div class="task-group-title"><span class="dot"></span>${esc(month)} 的月任务</div>
+        ${items.map(taskItemHtml).join("")}
+      </div>`;
+    }
+  }
+
+  function taskItemHtml(t) {
+    const overdue = t.type === "day" && !t.done && (daysUntil(t.date) || 0) < 0;
+    const dateTag = t.type === "day"
+      ? `<span class="task-date">📅 ${esc(t.date || "")}</span>`
+      : `<span class="task-date">📆 ${esc(t.month || "")}</span>`;
+    return `<div class="task-item ${t.done ? "done" : ""} ${overdue ? "overdue" : ""}">
+      <input type="checkbox" class="task-chk" data-toggle-task="${t.id}" ${t.done ? "checked" : ""}>
+      <span class="task-title">${esc(t.title)}</span>
+      ${dateTag}
+      <button class="task-del" data-del-task="${t.id}" title="删除任务">×</button>
+    </div>`;
+  }
+
+  function openTaskModal(task) {
+    $("#task-modal-title").textContent = task ? "编辑任务" : "新增任务";
+    $("#task-id").value = task ? task.id : "";
+    $("#t-title").value = task ? task.title : "";
+    $("#t-type").value = task ? task.type : "day";
+    const isDay = (task ? task.type : "day") === "day";
+    $("#t-date-label").querySelector("input").type = isDay ? "date" : "month";
+    $("#t-date-label").firstChild.textContent = isDay ? "日期" : "月份";
+    $("#t-date").value = task ? (task.date || task.month || (isDay ? todayStr() : thisMonthStr())) : (isDay ? todayStr() : thisMonthStr());
+    $("#task-modal").classList.remove("hidden");
+    $("#t-title").focus();
+  }
+
+  function submitTask(e) {
+    e.preventDefault();
+    const id = $("#task-id").value;
+    const type = $("#t-type").value;
+    const dateVal = $("#t-date").value;
+    const data = {
+      title: $("#t-title").value.trim(),
+      type: type,
+      date: type === "day" ? dateVal : "",
+      month: type === "month" ? dateVal : ""
+    };
+    if (!data.title) { toast("请填写任务内容"); return; }
+    if (type === "day" && !data.date) { toast("请选择日期"); return; }
+    if (type === "month" && !data.month) { toast("请选择月份"); return; }
+    const now = Date.now();
+    if (id) {
+      const idx = state.tasks.findIndex((t) => t.id === id);
+      if (idx >= 0) state.tasks[idx] = { ...state.tasks[idx], ...data, updatedAt: now };
+      toast("任务已更新");
+    } else {
+      state.tasks.push({ id: uid(), ...data, done: false, createdAt: now, updatedAt: now });
+      toast("任务已添加");
+    }
+    save();
+    $("#task-modal").classList.add("hidden");
+    renderTasks();
+  }
+
+  function toggleTask(id) {
+    const t = state.tasks.find((x) => x.id === id);
+    if (!t) return;
+    t.done = !t.done;
+    save();
+    renderTasks();
+  }
+
+  /* ============ 款式相册 ============ */
+  function fillGalleryCatOptions() {
+    const cats = state.galleryCats;
+    const sel = $("#gallery-cat-filter");
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">全部分类</option>' + cats.map((c) => `<option>${esc(c)}</option>`).join("");
+    sel.value = cur;
+    const gcat = $("#g-cat");
+    gcat.innerHTML = '<option value="">(未分类)</option>' + cats.map((c) => `<option>${esc(c)}</option>`).join("");
+  }
+
+  function renderGallery() {
+    const cat = $("#gallery-cat-filter").value;
+    let list = state.galleryItems;
+    if (cat) list = list.filter((g) => g.category === cat);
+    list = [...list].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    const box = $("#gallery-grid");
+    $("#gallery-empty").classList.toggle("hidden", list.length > 0);
+    box.innerHTML = list.map((g) => `
+      <div class="gallery-card" data-open-gallery="${g.id}">
+        <img src="${g.image}" alt="${esc(g.title || "款式图")}" loading="lazy">
+        <div class="g-info">
+          <span class="g-title">${esc(g.title || "未命名款式")}</span>
+          ${g.category ? `<span class="tag">${esc(g.category)}</span>` : ""}
+          <button class="g-del" data-del-gallery="${g.id}" title="删除">×</button>
+        </div>
+      </div>`).join("");
+  }
+
+  function openGalleryModal() {
+    $("#g-title").value = "";
+    $("#g-cat").value = "";
+    $("#g-file").value = "";
+    $("#upload-preview").classList.add("hidden");
+    $("#upload-text").textContent = "📷 点击选择图片";
+    $("#gallery-modal").classList.remove("hidden");
+  }
+
+  function compressImage(file, maxW, quality) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("图片读取失败")); };
+      img.src = url;
+    });
+  }
+
+  function saveGallery() {
+    const file = $("#g-file").files[0];
+    if (!file) { toast("请先选择一张图片"); return; }
+    if (!file.type.startsWith("image/")) { toast("请选择图片文件"); return; }
+    const title = $("#g-title").value.trim();
+    const category = $("#g-cat").value;
+    compressImage(file, 900, 0.8).then((image) => {
+      state.galleryItems.push({ id: uid(), title, category, image, createdAt: Date.now() });
+      save();
+      $("#gallery-modal").classList.add("hidden");
+      renderGallery();
+      toast("款式图已保存");
+    }).catch(() => toast("图片处理失败,请换一张试试"));
+  }
+
+  function openGalleryView(id) {
+    const g = state.galleryItems.find((x) => x.id === id);
+    if (!g) return;
+    $("#gv-title").textContent = (g.title || "未命名款式") + (g.category ? " · " + g.category : "");
+    $("#gv-img").src = g.image;
+    $("#gv-delete").dataset.galleryId = g.id;
+    $("#gallery-view-modal").classList.remove("hidden");
+  }
+
   /* ---------- 删除确认 ---------- */
   let pendingDelete = null;
   function askDelete(text, fn) {
@@ -532,9 +863,16 @@
       try {
         const data = JSON.parse(reader.result);
         if (!Array.isArray(data.recipes) || !Array.isArray(data.ingredients)) throw new Error("格式不对");
-        state = { recipes: data.recipes, ingredients: data.ingredients, bakes: data.bakes || [] };
+        const base = load();
+        state = {
+          recipes: data.recipes, ingredients: data.ingredients, bakes: data.bakes || [],
+          memos: data.memos || base.memos, tasks: data.tasks || base.tasks,
+          galleryItems: data.galleryItems || base.galleryItems,
+          galleryCats: (data.galleryCats && data.galleryCats.length ? data.galleryCats : base.galleryCats)
+        };
         save();
         fillCategoryFilter();
+        fillGalleryCatOptions();
         switchView("dashboard");
         toast("导入成功");
       } catch (e) {
@@ -595,7 +933,7 @@
       if (open) openRecipeDetail(open.dataset.openRecipe);
     });
 
-    // 配方详情弹窗操作
+    // 配方详情
     $("#rd-edit").addEventListener("click", () => {
       const id = $("#rd-edit").dataset.recipeId;
       $("#recipe-detail-modal").classList.add("hidden");
@@ -655,6 +993,129 @@
       }
     });
 
+    // 备忘录
+    $("#btn-add-memo").addEventListener("click", () => openMemoModal(null));
+    initMemoToolbar();
+    $("#memo-save").addEventListener("click", saveMemo);
+    $("#memo-search").addEventListener("input", renderMemos);
+    $("#memo-list").addEventListener("click", (e) => {
+      const edit = e.target.closest("[data-edit-memo]");
+      const del = e.target.closest("[data-del-memo]");
+      const open = e.target.closest("[data-open-memo]");
+      if (edit) {
+        e.stopPropagation();
+        const m = state.memos.find((x) => x.id === edit.dataset.editMemo);
+        if (m) openMemoModal(m);
+        return;
+      }
+      if (del) {
+        e.stopPropagation();
+        const m = state.memos.find((x) => x.id === del.dataset.delMemo);
+        if (m) askDelete(`确定删除备忘录「${m.title || "(无标题)"}」吗?`, () => {
+          state.memos = state.memos.filter((x) => x.id !== m.id);
+          save(); renderMemos(); toast("已删除");
+        });
+        return;
+      }
+      if (open) {
+        const m = state.memos.find((x) => x.id === open.dataset.openMemo);
+        if (m) openMemoModal(m);
+      }
+    });
+
+    // 任务
+    $("#btn-add-task").addEventListener("click", () => openTaskModal(null));
+    $("#task-form").addEventListener("submit", submitTask);
+    $("#task-tabs").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-task-tab]");
+      if (!btn) return;
+      taskTab = btn.dataset.taskTab;
+      $$("#task-tabs .seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      const isDay = taskTab === "day";
+      $("#task-date").classList.toggle("hidden", !isDay);
+      $("#task-month").classList.toggle("hidden", isDay);
+      renderTasks();
+    });
+    $("#task-date").addEventListener("change", renderTasks);
+    $("#task-month").addEventListener("change", renderTasks);
+    $("#task-list").addEventListener("click", (e) => {
+      const del = e.target.closest("[data-del-task]");
+      if (del) {
+        const t = state.tasks.find((x) => x.id === del.dataset.delTask);
+        if (t) askDelete(`确定删除任务「${t.title}」吗?`, () => {
+          state.tasks = state.tasks.filter((x) => x.id !== t.id);
+          save(); renderTasks(); toast("已删除");
+        });
+      }
+    });
+    $("#task-list").addEventListener("change", (e) => {
+      const chk = e.target.closest("[data-toggle-task]");
+      if (chk) toggleTask(chk.dataset.toggleTask);
+    });
+    $("#t-type").addEventListener("change", () => {
+      const isDay = $("#t-type").value === "day";
+      $("#t-date-label").querySelector("input").type = isDay ? "date" : "month";
+      $("#t-date-label").firstChild.textContent = isDay ? "日期" : "月份";
+      $("#t-date").value = isDay ? todayStr() : thisMonthStr();
+    });
+
+    // 相册
+    $("#btn-add-photo").addEventListener("click", openGalleryModal);
+    $("#g-file").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const preview = $("#upload-preview");
+      if (file.type.startsWith("image/")) {
+        const url = URL.createObjectURL(file);
+        preview.src = url;
+        preview.classList.remove("hidden");
+        $("#upload-text").textContent = "已选择: " + file.name;
+      }
+    });
+    $("#gallery-save").addEventListener("click", saveGallery);
+    $("#gallery-new-cat").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const name = e.target.value.trim();
+        if (!name) return;
+        if (!state.galleryCats.includes(name)) {
+          state.galleryCats.push(name);
+          save();
+          fillGalleryCatOptions();
+          $("#g-cat").value = name;
+          toast("分类「" + name + "」已添加");
+        } else {
+          toast("这个分类已经存在");
+        }
+        e.target.value = "";
+      }
+    });
+    $("#gallery-cat-filter").addEventListener("change", renderGallery);
+    $("#gallery-grid").addEventListener("click", (e) => {
+      const del = e.target.closest("[data-del-gallery]");
+      const open = e.target.closest("[data-open-gallery]");
+      if (del) {
+        e.stopPropagation();
+        const g = state.galleryItems.find((x) => x.id === del.dataset.delGallery);
+        if (g) askDelete(`确定删除款式图「${g.title || "未命名"}」吗?`, () => {
+          state.galleryItems = state.galleryItems.filter((x) => x.id !== g.id);
+          save(); renderGallery(); toast("已删除");
+        });
+        return;
+      }
+      if (open) openGalleryView(open.dataset.openGallery);
+    });
+    $("#gv-delete").addEventListener("click", () => {
+      const id = $("#gv-delete").dataset.galleryId;
+      const g = state.galleryItems.find((x) => x.id === id);
+      if (!g) return;
+      $("#gallery-view-modal").classList.add("hidden");
+      askDelete(`确定删除款式图「${g.title || "未命名"}」吗?`, () => {
+        state.galleryItems = state.galleryItems.filter((x) => x.id !== g.id);
+        save(); renderGallery(); toast("已删除");
+      });
+    });
+
     // 删除确认
     $("#confirm-ok").addEventListener("click", () => {
       if (pendingDelete) pendingDelete();
@@ -680,6 +1141,7 @@
   function init() {
     bindEvents();
     fillCategoryFilter();
+    fillGalleryCatOptions();
     switchView("dashboard");
     checkExpiryReminder();
     syncFromServer();
