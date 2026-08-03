@@ -25,7 +25,7 @@
           recipes: d.recipes || base.recipes,
           ingredients: d.ingredients || base.ingredients,
           bakes: d.bakes || base.bakes,
-          memos: d.memos || base.memos,
+          memos: (d.memos || base.memos).map(normalizeMemo),
           tasks: d.tasks || base.tasks,
           galleryItems: d.galleryItems || base.galleryItems,
           galleryCats: (d.galleryCats && d.galleryCats.length ? d.galleryCats : base.galleryCats)
@@ -65,7 +65,7 @@
             recipes: data.recipes || base.recipes,
             ingredients: data.ingredients || base.ingredients,
             bakes: data.bakes || base.bakes,
-            memos: data.memos || base.memos,
+memos: (data.memos || base.memos).map(normalizeMemo),
             tasks: data.tasks || base.tasks,
             galleryItems: data.galleryItems || base.galleryItems,
             galleryCats: (data.galleryCats && data.galleryCats.length ? data.galleryCats : base.galleryCats)
@@ -551,17 +551,17 @@
     renderBakes();
   }
 
-  /* ============ 备忘录(富文本) ============ */
+  /* ============ 备忘录(结构化行:普通段落 + 可勾选任务行) ============ */
   function renderMemos() {
     const kw = ($("#memo-search").value || "").trim().toLowerCase();
     // 编辑弹窗打开时,用编辑器里的实时内容刷新预览统计(勾选后立即更新)
-    let liveId = null, liveHtml = null;
+    let liveId = null, liveContent = null;
     if (!$("#memo-modal").classList.contains("hidden") && $("#memo-id").value) {
       liveId = $("#memo-id").value;
-      liveHtml = $("#m-editor").innerHTML;
+      liveContent = collectMemoContent();
     }
-    let list = state.memos.map((m) => (m.id === liveId ? { ...m, html: liveHtml } : m));
-    if (kw) list = list.filter((m) => (m.title || "").toLowerCase().includes(kw) || stripHtml(m.html || "").toLowerCase().includes(kw));
+    let list = state.memos.map((m) => (m.id === liveId ? { ...m, content: liveContent } : m));
+    if (kw) list = list.filter((m) => (m.title || "").toLowerCase().includes(kw) || memoText(m).toLowerCase().includes(kw));
     list = [...list].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
     const box = $("#memo-list");
@@ -569,7 +569,7 @@
     box.innerHTML = list.map((m) => `
       <div class="memo-card" data-open-memo="${m.id}">
         <h3>${esc(m.title || "(无标题)")}</h3>
-        <div class="memo-preview">${previewHtml(m.html || "")}</div>
+        <div class="memo-preview">${memoPreview(m)}</div>
         <div class="memo-time">${fmtTime(m.updatedAt || m.createdAt)}</div>
         <div class="memo-actions">
           <button class="btn btn-small" data-edit-memo="${m.id}">编辑</button>
@@ -578,19 +578,28 @@
       </div>`).join("");
   }
 
+  function memoContent(m) {
+    return Array.isArray(m.content) ? m.content : [];
+  }
+
+  function memoText(m) {
+    return memoContent(m).map((r) => stripHtml(r.html)).join(" ");
+  }
+
+  function memoPreview(m) {
+    const rows = memoContent(m);
+    const total = rows.filter((r) => r.type === "task").length;
+    const done = rows.filter((r) => r.type === "task" && r.done).length;
+    const text = rows.map((r) => stripHtml(r.html)).join(" ").replace(/\s+/g, " ").trim();
+    let out = text.length > 80 ? text.slice(0, 80) + "…" : (text || "空内容");
+    if (total > 0) out += ` <span class="tag ${done === total ? "tag-ok" : ""}">☑ ${done}/${total}</span>`;
+    return out;
+  }
+
   function stripHtml(html) {
     const div = document.createElement("div");
     div.innerHTML = html;
     return (div.textContent || "").replace(/\s+/g, " ").trim();
-  }
-
-  function previewHtml(html) {
-    const text = stripHtml(html);
-    const done = (html.match(/data-checked="1"/g) || []).length;
-    const total = (html.match(/class="memo-chk"/g) || []).length;
-    let out = text.length > 80 ? text.slice(0, 80) + "…" : (text || "空内容");
-    if (total > 0) out += ` <span class="tag ${done === total ? "tag-ok" : ""}">☑ ${done}/${total}</span>`;
-    return out;
   }
 
   function fmtTime(ts) {
@@ -600,27 +609,103 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
+  /* 旧数据迁移:html 字符串 → 结构化行 */
+  function normalizeMemo(m) {
+    if (Array.isArray(m.content)) return m;
+    const html = m.html || "";
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    const content = [];
+    Array.from(div.children).forEach((block) => {
+      const chk = block.querySelector(".memo-chk");
+      if (chk) {
+        const clone = block.cloneNode(true);
+        const c = clone.querySelector(".memo-chk");
+        if (c) c.remove();
+        content.push({ type: "task", done: chk.dataset.checked === "1", html: clone.innerHTML.trim() });
+      } else {
+        content.push({ type: "text", html: block.innerHTML });
+      }
+    });
+    if (!content.length && html.trim()) content.push({ type: "text", html });
+    return { ...m, content };
+  }
+
+  /* 编辑器:渲染结构化行 */
+  function renderMemoEditor(content) {
+    const box = $("#m-editor");
+    box.innerHTML = "";
+    (content || []).forEach((row) => {
+      const div = document.createElement("div");
+      div.className = "memo-row" + (row.type === "task" ? " memo-task-row" : "");
+      if (row.type === "task") {
+        const chk = document.createElement("span");
+        chk.className = "memo-chk";
+        chk.dataset.checked = row.done ? "1" : "0";
+        const text = document.createElement("div");
+        text.className = "memo-row-text";
+        text.contentEditable = "true";
+        text.innerHTML = row.html || "";
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "memo-row-del";
+        del.textContent = "×";
+        del.title = "删除这一行";
+        div.appendChild(chk); div.appendChild(text); div.appendChild(del);
+      } else {
+        const text = document.createElement("div");
+        text.className = "memo-row-text";
+        text.contentEditable = "true";
+        text.innerHTML = row.html || "";
+        div.appendChild(text);
+      }
+      box.appendChild(div);
+    });
+    if (!box.children.length) {
+      const first = document.createElement("div");
+      first.className = "memo-row";
+      const text = document.createElement("div");
+      text.className = "memo-row-text";
+      text.contentEditable = "true";
+      first.appendChild(text);
+      box.appendChild(first);
+    }
+  }
+
+  /* 收集编辑器内容为结构化行 */
+  function collectMemoContent() {
+    return $$("#m-editor .memo-row").map((row) => {
+      const text = row.querySelector(".memo-row-text");
+      const html = text ? text.innerHTML : "";
+      if (row.classList.contains("memo-task-row")) {
+        const chk = row.querySelector(".memo-chk");
+        return { type: "task", done: chk && chk.dataset.checked === "1", html };
+      }
+      return { type: "text", html };
+    }).filter((r) => r.html.trim() !== "" || r.type === "task");
+  }
+
   function openMemoModal(memo) {
     $("#memo-modal-title").textContent = memo ? "编辑备忘录" : "新建备忘录";
     $("#memo-id").value = memo ? memo.id : "";
     $("#m-title").value = memo ? memo.title : "";
-    $("#m-editor").innerHTML = memo ? (memo.html || "") : "";
+    renderMemoEditor(memo ? memoContent(memo) : []);
     $("#memo-modal").classList.remove("hidden");
-    setTimeout(() => { (memo ? $("#m-editor") : $("#m-title")).focus(); }, 60);
+    setTimeout(() => { (memo ? $("#m-editor .memo-row-text:last-child") : $("#m-title")).focus(); }, 60);
   }
 
   function saveMemo() {
     const id = $("#memo-id").value;
     const title = $("#m-title").value.trim();
-    const html = $("#m-editor").innerHTML.trim();
-    if (!title && !stripHtml(html)) { toast("写点内容再保存吧"); return; }
+    const content = collectMemoContent();
+    if (!title && !content.length) { toast("写点内容再保存吧"); return; }
     const now = Date.now();
     if (id) {
       const idx = state.memos.findIndex((m) => m.id === id);
-      if (idx >= 0) state.memos[idx] = { ...state.memos[idx], title, html, updatedAt: now };
+      if (idx >= 0) state.memos[idx] = { ...state.memos[idx], title, content, updatedAt: now };
       toast("备忘录已更新");
     } else {
-      state.memos.push({ id: uid(), title, html, createdAt: now, updatedAt: now });
+      state.memos.push({ id: uid(), title, content, createdAt: now, updatedAt: now });
       toast("备忘录已保存");
     }
     save();
@@ -633,91 +718,68 @@
       const btn = e.target.closest(".mt-btn, .mt-color");
       if (!btn) return;
       e.preventDefault();
-      const editor = $("#m-editor");
-      editor.focus();
       if (btn.dataset.color) {
         document.execCommand("foreColor", false, btn.dataset.color);
       } else if (btn.dataset.cmd === "chk") {
-        insertMemoCheckbox();
+        insertTaskRow();
       } else {
         document.execCommand(btn.dataset.cmd, false, null);
       }
     });
-    // 点击勾选框:切换勾选 + 已勾选沉底 + 实时刷新卡片统计
+    // 点击勾选框:切换勾选 + 已勾选沉底 + 实时刷新统计;点击 × 删除该行
     $("#m-editor").addEventListener("click", (e) => {
       const chk = e.target.closest(".memo-chk");
-      if (!chk) return;
-      chk.dataset.checked = chk.dataset.checked === "1" ? "0" : "1";
-      reorderMemoByChecklist();
-      renderMemos();
-    });
-    // 退格/删除键兜底:光标紧贴勾选框时手动删除(兼容 iOS)
-    $("#m-editor").addEventListener("keydown", (e) => {
-      if (e.key !== "Backspace" && e.key !== "Delete") return;
-      const sel = window.getSelection();
-      if (!sel || !sel.rangeCount) return;
-      const range = sel.getRangeAt(0);
-      const parent = range.startContainer;
-      const prev = parent.childNodes && parent.childNodes[range.startOffset - 1];
-      if (prev && prev.classList && prev.classList.contains("memo-chk")) {
-        e.preventDefault();
-        prev.remove();
+      if (chk) {
+        chk.dataset.checked = chk.dataset.checked === "1" ? "0" : "1";
+        reorderMemoRows();
+        renderMemos();
+        return;
+      }
+      const del = e.target.closest(".memo-row-del");
+      if (del) {
+        del.closest(".memo-row").remove();
         renderMemos();
       }
     });
   }
 
-  /* 在光标所在段落开头插入勾选框(原生 DOM 操作,iOS 也可靠) */
-  function insertMemoCheckbox() {
-    const editor = $("#m-editor");
-    editor.focus();
+  /* 在光标所在行之后插入一个任务行(勾选框在行首) */
+  function insertTaskRow() {
+    const box = $("#m-editor");
+    let anchorRow = null;
     const sel = window.getSelection();
-    let target = null;
-    if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
-      const range = sel.getRangeAt(0);
-      let node = range.startContainer;
-      let block = node.nodeType === 1 ? node : node.parentNode;
-      while (block && block !== editor && block.parentNode !== editor) block = block.parentNode;
-      if (block && block !== editor) {
-        target = document.createRange();
-        target.setStart(block, 0);
-        target.collapse(true);
-      } else {
-        target = range.cloneRange();
-        target.collapse(false);
-      }
+    if (sel && sel.rangeCount > 0 && sel.anchorNode) {
+      const el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+      anchorRow = el ? el.closest(".memo-row") : null;
     }
-    if (!target) {
-      target = document.createRange();
-      target.selectNodeContents(editor);
-      target.collapse(false);
-    }
-    const span = document.createElement("span");
-    span.className = "memo-chk";
-    span.setAttribute("contenteditable", "false");
-    span.dataset.checked = "0";
-    target.insertNode(span);
-    const space = document.createTextNode("\u00a0");
-    target.setStartAfter(span);
-    target.insertNode(space);
-    const caret = document.createRange();
-    caret.setStartAfter(space);
-    caret.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(caret);
+    const row = document.createElement("div");
+    row.className = "memo-row memo-task-row";
+    const chk = document.createElement("span");
+    chk.className = "memo-chk";
+    chk.dataset.checked = "0";
+    const text = document.createElement("div");
+    text.className = "memo-row-text";
+    text.contentEditable = "true";
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "memo-row-del";
+    del.textContent = "×";
+    del.title = "删除这一行";
+    row.appendChild(chk); row.appendChild(text); row.appendChild(del);
+    if (anchorRow) anchorRow.after(row);
+    else box.appendChild(row);
+    text.focus();
   }
 
-  /* 把包含已勾选勾选框的块移动到内容末尾(未勾选的保持原顺序在上方) */
-  function reorderMemoByChecklist() {
-    const editor = $("#m-editor");
-    const blocks = Array.from(editor.children).filter((el) => el.tagName !== "BR");
-    if (blocks.length < 2) return; // 只有一个块(未换行),无需重排
-    const todo = [];
-    const done = [];
-    blocks.forEach((b) => (b.querySelector('.memo-chk[data-checked="1"]') ? done : todo).push(b));
+  /* 已勾选的任务行沉到内容末尾(未勾选保持原顺序在上方) */
+  function reorderMemoRows() {
+    const box = $("#m-editor");
+    const rows = Array.from(box.querySelectorAll(".memo-row"));
+    const todo = rows.filter((r) => !r.classList.contains("memo-task-row") || r.querySelector(".memo-chk").dataset.checked !== "1");
+    const done = rows.filter((r) => r.classList.contains("memo-task-row") && r.querySelector(".memo-chk").dataset.checked === "1");
     if (!done.length) return;
-    blocks.forEach((b) => b.remove());
-    todo.concat(done).forEach((b) => editor.appendChild(b));
+    rows.forEach((r) => r.remove());
+    todo.concat(done).forEach((r) => box.appendChild(r));
   }
 
   /* ============ 任务清单 ============ */
@@ -947,7 +1009,7 @@
         const base = load();
         state = {
           recipes: data.recipes, ingredients: data.ingredients, bakes: data.bakes || [],
-          memos: data.memos || base.memos, tasks: data.tasks || base.tasks,
+          memos: (data.memos || base.memos).map(normalizeMemo), tasks: data.tasks || base.tasks,
           galleryItems: data.galleryItems || base.galleryItems,
           galleryCats: (data.galleryCats && data.galleryCats.length ? data.galleryCats : base.galleryCats)
         };

@@ -287,11 +287,22 @@ input:focus, textarea:focus { outline: 2px solid #f3c6d2; border-color: var(--br
   outline: none; background: #fff;
 }
 .memo-editor:focus { border-color: var(--brand); }
-.memo-editor:empty::before { content: attr(placeholder); color: var(--muted); }
-.memo-editor b { font-weight: 700; }
-.memo-editor i { font-style: italic; }
-.memo-editor u { text-decoration: underline; }
-.memo-editor s { text-decoration: line-through; }
+.memo-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.memo-row-text { flex: 1; min-height: 24px; outline: none; line-height: 1.7; border-radius: 6px; padding: 1px 4px; }
+.memo-row-text:focus { background: #fdf9f8; }
+.memo-row-text b { font-weight: 700; }
+.memo-row-text i { font-style: italic; }
+.memo-row-text u { text-decoration: underline; }
+.memo-row-text s { text-decoration: line-through; }
+.memo-task-row .memo-row-text { padding-top: 2px; }
+.memo-row-del {
+  border: none; background: none; color: var(--muted); font-size: 1.1rem;
+  cursor: pointer; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  visibility: hidden; line-height: 1;
+}
+.memo-task-row:hover .memo-row-del { visibility: visible; }
+.memo-row-del:hover { color: var(--danger); background: var(--brand-soft); }
+@media (max-width: 760px) { .memo-row-del { visibility: visible; } }
 .memo-chk {
   display: inline-block; width: 18px; height: 18px;
   border: 2px solid #d9a0b0; border-radius: 5px;
