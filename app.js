@@ -740,6 +740,13 @@ memos: (data.memos || base.memos).map(normalizeMemo),
     // 记录光标所在行
     $("#m-editor").addEventListener("keyup", saveActiveRow);
     $("#m-editor").addEventListener("mouseup", saveActiveRow);
+    // 回车 = 开新行(Shift+回车 保留行内换行)
+    $("#m-editor").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        splitMemoRow();
+      }
+    });
     // 点击勾选框:切换勾选 + 已勾选沉底 + 实时刷新统计;点击 × 删除该行
     $("#m-editor").addEventListener("click", (e) => {
       const chk = e.target.closest(".memo-chk");
@@ -755,6 +762,55 @@ memos: (data.memos || base.memos).map(normalizeMemo),
         renderMemos();
       }
     });
+  }
+
+  /* 回车拆分:光标后的内容移到新行,新行类型跟随当前行(普通→普通,勾选→勾选) */
+  function splitMemoRow() {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const el = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+    const row = el ? el.closest(".memo-row") : null;
+    if (!row) return;
+    const textDiv = row.querySelector(".memo-row-text");
+    if (!textDiv) return;
+
+    // 提取光标之后的内容
+    const after = document.createRange();
+    after.setStart(range.startContainer, range.startOffset);
+    after.setEnd(textDiv, textDiv.childNodes.length);
+    const afterContent = after.extractContents();
+
+    const isTask = row.classList.contains("memo-task-row");
+    const newRow = document.createElement("div");
+    newRow.className = "memo-row" + (isTask ? " memo-task-row" : "");
+    if (isTask) {
+      const chk = document.createElement("span");
+      chk.className = "memo-chk";
+      chk.dataset.checked = "0";
+      newRow.appendChild(chk);
+    }
+    const newText = document.createElement("div");
+    newText.className = "memo-row-text";
+    newText.contentEditable = "true";
+    newText.appendChild(afterContent);
+    newRow.appendChild(newText);
+    if (isTask) {
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "memo-row-del";
+      del.textContent = "×";
+      del.title = "删除这一行";
+      newRow.appendChild(del);
+    }
+    row.after(newRow);
+    lastActiveRow = newRow;
+    newText.focus();
+    const caret = document.createRange();
+    caret.setStart(newText, 0);
+    caret.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(caret);
   }
 
   /* 点 ☑️:光标所在段落直接变成勾选行(勾选框强制在段落头);
