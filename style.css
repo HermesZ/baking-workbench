@@ -292,7 +292,17 @@ input:focus, textarea:focus { outline: 2px solid #f3c6d2; border-color: var(--br
 .memo-editor i { font-style: italic; }
 .memo-editor u { text-decoration: underline; }
 .memo-editor s { text-decoration: line-through; }
-.memo-chk { width: 18px; height: 18px; accent-color: var(--brand); margin: 0 6px 0 0; vertical-align: -3px; cursor: pointer; }
+.memo-chk {
+  display: inline-block; width: 18px; height: 18px;
+  border: 2px solid #d9a0b0; border-radius: 5px;
+  vertical-align: -3px; margin: 0 6px 0 0; cursor: pointer;
+  background: #fff; position: relative; flex-shrink: 0;
+}
+.memo-chk[data-checked="1"] { background: var(--brand); border-color: var(--brand); }
+.memo-chk[data-checked="1"]::after {
+  content: "✓"; color: #fff; font-size: 12px; font-weight: 700;
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+}
 .memo-tip { font-size: .75rem; color: var(--muted); margin-top: 8px; }
 
 /* ============ 任务清单 ============ */

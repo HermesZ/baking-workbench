@@ -586,8 +586,8 @@
 
   function previewHtml(html) {
     const text = stripHtml(html);
-    const done = (html.match(/<input[^>]*checked/g) || []).length;
-    const total = (html.match(/<input[^>]*class="[^"]*memo-chk/g) || []).length;
+    const done = (html.match(/data-checked="1"/g) || []).length;
+    const total = (html.match(/class="memo-chk"/g) || []).length;
     let out = text.length > 80 ? text.slice(0, 80) + "…" : (text || "空内容");
     if (total > 0) out += ` <span class="tag ${done === total ? "tag-ok" : ""}">☑ ${done}/${total}</span>`;
     return out;
@@ -638,18 +638,73 @@
       if (btn.dataset.color) {
         document.execCommand("foreColor", false, btn.dataset.color);
       } else if (btn.dataset.cmd === "chk") {
-        document.execCommand("insertHTML", false, '<input type="checkbox" class="memo-chk" contenteditable="false"> ');
+        insertMemoCheckbox();
       } else {
         document.execCommand(btn.dataset.cmd, false, null);
       }
     });
-    // 勾选事项:已勾选的「行」自动沉底 + 实时刷新卡片统计
-    $("#m-editor").addEventListener("change", (e) => {
-      if (e.target.classList && e.target.classList.contains("memo-chk")) {
-        reorderMemoByChecklist();
+    // 点击勾选框:切换勾选 + 已勾选沉底 + 实时刷新卡片统计
+    $("#m-editor").addEventListener("click", (e) => {
+      const chk = e.target.closest(".memo-chk");
+      if (!chk) return;
+      chk.dataset.checked = chk.dataset.checked === "1" ? "0" : "1";
+      reorderMemoByChecklist();
+      renderMemos();
+    });
+    // 退格/删除键兜底:光标紧贴勾选框时手动删除(兼容 iOS)
+    $("#m-editor").addEventListener("keydown", (e) => {
+      if (e.key !== "Backspace" && e.key !== "Delete") return;
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const parent = range.startContainer;
+      const prev = parent.childNodes && parent.childNodes[range.startOffset - 1];
+      if (prev && prev.classList && prev.classList.contains("memo-chk")) {
+        e.preventDefault();
+        prev.remove();
         renderMemos();
       }
     });
+  }
+
+  /* 在光标所在段落开头插入勾选框(原生 DOM 操作,iOS 也可靠) */
+  function insertMemoCheckbox() {
+    const editor = $("#m-editor");
+    editor.focus();
+    const sel = window.getSelection();
+    let target = null;
+    if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      let node = range.startContainer;
+      let block = node.nodeType === 1 ? node : node.parentNode;
+      while (block && block !== editor && block.parentNode !== editor) block = block.parentNode;
+      if (block && block !== editor) {
+        target = document.createRange();
+        target.setStart(block, 0);
+        target.collapse(true);
+      } else {
+        target = range.cloneRange();
+        target.collapse(false);
+      }
+    }
+    if (!target) {
+      target = document.createRange();
+      target.selectNodeContents(editor);
+      target.collapse(false);
+    }
+    const span = document.createElement("span");
+    span.className = "memo-chk";
+    span.setAttribute("contenteditable", "false");
+    span.dataset.checked = "0";
+    target.insertNode(span);
+    const space = document.createTextNode("\u00a0");
+    target.setStartAfter(span);
+    target.insertNode(space);
+    const caret = document.createRange();
+    caret.setStartAfter(space);
+    caret.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(caret);
   }
 
   /* 把包含已勾选勾选框的块移动到内容末尾(未勾选的保持原顺序在上方) */
@@ -659,7 +714,7 @@
     if (blocks.length < 2) return; // 只有一个块(未换行),无需重排
     const todo = [];
     const done = [];
-    blocks.forEach((b) => (b.querySelector("input.memo-chk:checked") ? done : todo).push(b));
+    blocks.forEach((b) => (b.querySelector('.memo-chk[data-checked="1"]') ? done : todo).push(b));
     if (!done.length) return;
     blocks.forEach((b) => b.remove());
     todo.concat(done).forEach((b) => editor.appendChild(b));
