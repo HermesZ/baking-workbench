@@ -713,6 +713,17 @@ memos: (data.memos || base.memos).map(normalizeMemo),
     renderMemos();
   }
 
+  /* 编辑器当前焦点所在行(点击工具栏时 selection 会丢失,提前保存) */
+  let lastActiveRow = null;
+  function saveActiveRow() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && sel.anchorNode) {
+      const el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+      const row = el ? el.closest(".memo-row") : null;
+      if (row && $("#m-editor").contains(row)) lastActiveRow = row;
+    }
+  }
+
   function initMemoToolbar() {
     $("#memo-toolbar").addEventListener("click", (e) => {
       const btn = e.target.closest(".mt-btn, .mt-color");
@@ -726,6 +737,9 @@ memos: (data.memos || base.memos).map(normalizeMemo),
         document.execCommand(btn.dataset.cmd, false, null);
       }
     });
+    // 记录光标所在行
+    $("#m-editor").addEventListener("keyup", saveActiveRow);
+    $("#m-editor").addEventListener("mouseup", saveActiveRow);
     // 点击勾选框:切换勾选 + 已勾选沉底 + 实时刷新统计;点击 × 删除该行
     $("#m-editor").addEventListener("click", (e) => {
       const chk = e.target.closest(".memo-chk");
@@ -743,17 +757,37 @@ memos: (data.memos || base.memos).map(normalizeMemo),
     });
   }
 
-  /* 在光标所在行之后插入一个任务行(勾选框在行首) */
+  /* 点 ☑️:光标所在段落直接变成勾选行(勾选框强制在段落头);
+     若光标已在勾选行,则在其后新增一行 */
   function insertTaskRow() {
     const box = $("#m-editor");
-    let anchorRow = null;
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && sel.anchorNode) {
-      const el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
-      anchorRow = el ? el.closest(".memo-row") : null;
+    let row = lastActiveRow;
+    if (!row || !$("#m-editor").contains(row)) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0 && sel.anchorNode) {
+        const el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+        row = el ? el.closest(".memo-row") : null;
+      }
     }
-    const row = document.createElement("div");
-    row.className = "memo-row memo-task-row";
+    if (row && !row.classList.contains("memo-task-row")) {
+      // 普通段落 → 转换为勾选行:勾选框插到段落最前面
+      const chk = document.createElement("span");
+      chk.className = "memo-chk";
+      chk.dataset.checked = "0";
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "memo-row-del";
+      del.textContent = "×";
+      del.title = "删除这一行";
+      row.classList.add("memo-task-row");
+      row.insertBefore(chk, row.firstChild);
+      row.appendChild(del);
+      renderMemos();
+      return;
+    }
+    // 已是勾选行(或没有活动行):在行后插入新勾选行
+    const newRow = document.createElement("div");
+    newRow.className = "memo-row memo-task-row";
     const chk = document.createElement("span");
     chk.className = "memo-chk";
     chk.dataset.checked = "0";
@@ -765,9 +799,10 @@ memos: (data.memos || base.memos).map(normalizeMemo),
     del.className = "memo-row-del";
     del.textContent = "×";
     del.title = "删除这一行";
-    row.appendChild(chk); row.appendChild(text); row.appendChild(del);
-    if (anchorRow) anchorRow.after(row);
-    else box.appendChild(row);
+    newRow.appendChild(chk); newRow.appendChild(text); newRow.appendChild(del);
+    if (row) row.after(newRow);
+    else $("#m-editor").appendChild(newRow);
+    lastActiveRow = newRow;
     text.focus();
   }
 

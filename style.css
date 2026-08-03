@@ -287,7 +287,7 @@ input:focus, textarea:focus { outline: 2px solid #f3c6d2; border-color: var(--br
   outline: none; background: #fff;
 }
 .memo-editor:focus { border-color: var(--brand); }
-.memo-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.memo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .memo-row-text { flex: 1; min-height: 24px; outline: none; line-height: 1.7; border-radius: 6px; padding: 1px 4px; }
 .memo-row-text:focus { background: #fdf9f8; }
 .memo-row-text b { font-weight: 700; }
