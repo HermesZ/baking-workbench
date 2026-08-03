@@ -1,0 +1,245 @@
+/* ============ 烘焙工作台 样式 ============ */
+:root {
+  --bg: #faf3e8;
+  --card: #ffffff;
+  --ink: #4a3728;
+  --muted: #9b8b7a;
+  --brand: #c97b3d;
+  --brand-dark: #a85f2a;
+  --cream: #f3e6d3;
+  --line: #eadfce;
+  --ok: #4c9a62;
+  --warn: #d99a2b;
+  --danger: #d05a4a;
+  --shadow: 0 2px 10px rgba(122, 85, 45, .10);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+.hidden { display: none !important; }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  background: linear-gradient(135deg, #b76a2e, #d9975b);
+  color: #fff;
+  box-shadow: var(--shadow);
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-inner {
+  max-width: 1100px; margin: 0 auto; padding: 10px 18px;
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+.logo { margin: 0; font-size: 1.25rem; letter-spacing: .5px; }
+.nav { display: flex; gap: 6px; flex: 1; }
+.nav-btn {
+  border: none; background: transparent; color: #ffe9d6;
+  font-size: .95rem; padding: 7px 14px; border-radius: 20px; cursor: pointer;
+  transition: background .2s;
+}
+.nav-btn:hover { background: rgba(255,255,255,.15); }
+.nav-btn.active { background: #fff; color: var(--brand-dark); font-weight: 600; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+/* 同步状态圆点 */
+.sync-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.sync-dot.sync-ok { background: #7fd68b; box-shadow: 0 0 6px rgba(127, 214, 139, .8); }
+.sync-dot.sync-fail { background: #ff8f7a; box-shadow: 0 0 6px rgba(255, 143, 122, .8); }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: .9rem;
+  transition: all .15s;
+}
+.btn:hover { border-color: var(--brand); color: var(--brand-dark); }
+.btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-dark); color: #fff; }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger:hover { filter: brightness(.92); color: #fff; }
+.btn-small { padding: 4px 10px; font-size: .8rem; border-radius: 8px; }
+.btn-ghost { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.4); color: #fff; }
+.btn-ghost:hover { background: rgba(255,255,255,.3); color: #fff; }
+
+/* ---------- 布局 ---------- */
+.container { max-width: 1100px; margin: 0 auto; padding: 20px 18px 60px; }
+.view { display: none; }
+.view.active { display: block; }
+.toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+.search {
+  flex: 1; min-width: 200px; padding: 9px 14px; border: 1px solid var(--line);
+  border-radius: 10px; background: #fff; font-size: .92rem; color: var(--ink);
+}
+.select {
+  padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; color: var(--ink); font-size: .9rem;
+}
+.search:focus, .select:focus { outline: 2px solid #e8b98a; border-color: var(--brand); }
+
+/* ---------- 卡片 ---------- */
+.card, .stat-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.card { padding: 16px; }
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.card-head h2 { margin: 0; font-size: 1.05rem; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.list { display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- 统计 ---------- */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-card { text-align: center; padding: 18px 10px; }
+.stat-num { font-size: 2rem; font-weight: 700; color: var(--brand-dark); }
+.stat-warn .stat-num { color: var(--warn); }
+.stat-danger .stat-num { color: var(--danger); }
+.stat-label { color: var(--muted); font-size: .85rem; margin-top: 4px; }
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .dash-grid { grid-template-columns: 1fr; } }
+
+/* ---------- 配方/材料卡片 ---------- */
+.item-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; }
+.item-card.clickable { cursor: pointer; transition: transform .12s, box-shadow .12s, border-color .12s; }
+.item-card.clickable:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(122, 85, 45, .16); border-color: #e0b98c; }
+.item-card .item-title { margin: 0; font-size: 1.02rem; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.item-card .item-meta { color: var(--muted); font-size: .82rem; display: flex; flex-wrap: wrap; gap: 6px; }
+.item-card .item-body { font-size: .88rem; color: #6b5846; }
+.item-card .item-actions { margin-top: auto; display: flex; gap: 8px; justify-content: flex-end; padding-top: 6px; border-top: 1px dashed var(--line); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .75rem; background: var(--cream); color: var(--brand-dark); }
+.tag-ok { background: #e4f2e8; color: var(--ok); }
+.tag-warn { background: #fbeed6; color: #b0781e; }
+.tag-danger { background: #f9e3df; color: var(--danger); }
+.ing-row { display: flex; justify-content: space-between; align-items: baseline; font-size: .85rem; padding: 3px 0; border-bottom: 1px dotted #f0e6d6; }
+.ing-row:last-child { border-bottom: none; }
+.days { font-weight: 600; }
+
+/* 列表行(首页/空提示) */
+.row-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; background: #fdf9f2; border: 1px solid var(--line); border-radius: 10px; font-size: .88rem; }
+.row-item .row-title { font-weight: 500; }
+.empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+/* ---------- 弹窗 ---------- */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(60, 40, 20, .45);
+  display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px;
+}
+.modal { background: #fff; border-radius: var(--radius); width: 640px; max-width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.2); }
+.modal-sm { width: 380px; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.modal-head h2 { margin: 0; font-size: 1.1rem; }
+.modal-close { border: none; background: none; font-size: 1.5rem; color: var(--muted); cursor: pointer; line-height: 1; }
+.modal-close:hover { color: var(--danger); }
+#recipe-form, #ing-form { padding: 18px 20px; }
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.form-row label { flex: 1; display: flex; flex-direction: column; gap: 5px; font-size: .85rem; color: var(--muted); min-width: 130px; }
+.form-row label.full { flex-basis: 100%; }
+input[type="text"], input[type="date"], textarea, select {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  font-size: .9rem; color: var(--ink); background: #fff; width: 100%;
+  font-family: inherit;
+}
+textarea { resize: vertical; }
+input:focus, textarea:focus { outline: 2px solid #e8b98a; border-color: var(--brand); }
+.ingredients-field { border: 1px dashed var(--line); border-radius: 10px; padding: 12px; margin: 0 0 12px; }
+.ingredients-field legend { font-size: .85rem; color: var(--muted); padding: 0 6px; }
+.ing-input-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.ing-input-row input { flex: 1; }
+.ing-input-row input.amount { flex: .7; }
+.ing-input-row input.unit { flex: .5; }
+.ing-del { border: none; background: none; color: var(--danger); font-size: 1.2rem; cursor: pointer; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line); }
+.confirm-text { padding: 18px 20px; margin: 0; color: var(--ink); }
+
+/* ---------- 配方详情 ---------- */
+.detail-body { padding: 18px 20px; }
+.detail-section { margin-bottom: 16px; }
+.detail-section h3 { margin: 0 0 8px; font-size: .95rem; color: var(--brand-dark); border-left: 3px solid var(--brand); padding-left: 8px; }
+.detail-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.detail-meta .meta-chip { background: var(--cream); color: var(--brand-dark); padding: 5px 12px; border-radius: 16px; font-size: .85rem; }
+.detail-desc { color: #6b5846; font-size: .9rem; line-height: 1.6; }
+.detail-ing-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.detail-ing-table th, .detail-ing-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.detail-ing-table th { color: var(--muted); font-weight: 500; width: 40%; }
+.detail-steps { margin: 0; padding-left: 20px; color: #5d4a38; font-size: .9rem; line-height: 1.8; }
+.detail-notes { background: #fdf6ec; border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; font-size: .88rem; color: #6b5846; white-space: pre-wrap; }
+.detail-empty { color: var(--muted); font-size: .88rem; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #3f2d1d; color: #fff; padding: 11px 20px; border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25); z-index: 200; font-size: .9rem;
+  animation: slideUp .25s ease;
+}
+@keyframes slideUp { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ============ 移动端适配 ============ */
+@media (max-width: 640px) {
+  .topbar-inner { padding: 8px 12px; gap: 10px; }
+  .logo { font-size: 1.05rem; }
+  .topbar-actions .btn-ghost { padding: 6px 10px; font-size: .8rem; }
+
+  /* 导航下移为底部固定栏(拇指友好) */
+  .nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: #fff; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-around;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 10px rgba(122, 85, 45, .12);
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: .74rem; padding: 6px 4px; border-radius: 10px; color: var(--muted);
+  }
+  .nav-ico { font-size: 1.15rem; line-height: 1; }
+  .nav-btn:hover { background: transparent; }
+  .nav-btn.active { background: var(--cream); color: var(--brand-dark); font-weight: 600; }
+  .container { padding-bottom: 88px; }
+
+  /* 统计卡两列 */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-card { padding: 14px 8px; }
+  .stat-num { font-size: 1.6rem; }
+
+  /* 卡片单列、间距收紧 */
+  .card-grid { grid-template-columns: 1fr; gap: 10px; }
+  .dash-grid { grid-template-columns: 1fr; gap: 10px; }
+  .card { padding: 14px; }
+
+  /* 工具栏:搜索独占一行,按钮并排 */
+  .toolbar { gap: 8px; }
+  .search { flex-basis: 100%; min-width: 0; }
+  .toolbar .select { flex: 1; min-width: 0; }
+  .toolbar .btn-primary { flex: 1; }
+
+  /* 触控目标加大 */
+  .btn { min-height: 42px; }
+  .btn-small { min-height: 36px; }
+  .search, .select { min-height: 42px; font-size: 16px; } /* 16px 防 iOS 聚焦缩放 */
+
+  /* 弹窗全屏,更好输入 */
+  .modal-mask { padding: 0; }
+  .modal { width: 100%; max-width: 100%; height: 100%; max-height: 100vh; border-radius: 0; }
+  .modal-sm { height: auto; max-height: 80vh; border-radius: var(--radius); }
+  .modal-head { padding: 14px 16px; }
+  .modal-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  #recipe-form, #ing-form { padding: 14px 16px; }
+
+  /* 表单纵向堆叠 */
+  .form-row { flex-direction: column; gap: 10px; }
+  .form-row label { min-width: 100%; }
+  input[type="text"], input[type="date"], textarea, select { font-size: 16px; padding: 10px; }
+
+  /* 材料输入行 */
+  .ing-input-row { flex-wrap: wrap; }
+  .ing-input-row input.ing-name { flex-basis: 100%; }
+  .ing-input-row input.amount { flex: 1; }
+  .ing-input-row input.unit { flex: 1; }
+
+  .detail-body { padding: 14px 16px; }
+  .item-card { padding: 12px; }
+}

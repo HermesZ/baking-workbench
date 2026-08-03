@@ -1,0 +1,11 @@
+# 本地数据(含隐私,不应上传)
+data.json
+
+# 构建产物(可用 build-single.js 重新生成)
+烘焙工作台-手机版.html
+deploy/
+
+# 通用
+node_modules/
+.DS_Store
+Thumbs.db
