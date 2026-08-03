@@ -48,12 +48,12 @@
           </div>
 
           <div class="stats-grid">
-            <div class="stat-card"><div class="stat-ico">📖</div><div class="stat-num" id="stat-recipes">0</div><div class="stat-label">配方</div></div>
-            <div class="stat-card"><div class="stat-ico">🧈</div><div class="stat-num" id="stat-ingredients">0</div><div class="stat-label">材料</div></div>
-            <div class="stat-card"><div class="stat-ico">🎂</div><div class="stat-num" id="stat-bakes">0</div><div class="stat-label">烘焙记录</div></div>
-            <div class="stat-card"><div class="stat-ico">📝</div><div class="stat-num" id="stat-memos">0</div><div class="stat-label">备忘录</div></div>
-            <div class="stat-card"><div class="stat-ico">✅</div><div class="stat-num" id="stat-tasks">0</div><div class="stat-label">待办任务</div></div>
-            <div class="stat-card"><div class="stat-ico">🖼️</div><div class="stat-num" id="stat-gallery">0</div><div class="stat-label">款式图片</div></div>
+            <div class="stat-card clickable" data-goto="recipes" title="查看配方库"><div class="stat-ico">📖</div><div class="stat-num" id="stat-recipes">0</div><div class="stat-label">配方</div></div>
+            <div class="stat-card clickable" data-goto="inventory" title="查看材料库存"><div class="stat-ico">🧈</div><div class="stat-num" id="stat-ingredients">0</div><div class="stat-label">材料</div></div>
+            <div class="stat-card clickable" data-goto="bakes" title="查看烘焙记录"><div class="stat-ico">🎂</div><div class="stat-num" id="stat-bakes">0</div><div class="stat-label">烘焙记录</div></div>
+            <div class="stat-card clickable" data-goto="memos" title="查看备忘录"><div class="stat-ico">📝</div><div class="stat-num" id="stat-memos">0</div><div class="stat-label">备忘录</div></div>
+            <div class="stat-card clickable" data-goto="tasks" title="查看任务清单"><div class="stat-ico">✅</div><div class="stat-num" id="stat-tasks">0</div><div class="stat-label">待办任务</div></div>
+            <div class="stat-card clickable" data-goto="gallery" title="查看款式相册"><div class="stat-ico">🖼️</div><div class="stat-num" id="stat-gallery">0</div><div class="stat-label">款式图片</div></div>
           </div>
 
           <div class="dash-grid">
@@ -149,6 +149,7 @@
           <div class="toolbar">
             <select id="gallery-cat-filter" class="select"><option value="">全部分类</option></select>
             <input type="text" id="gallery-new-cat" class="search search-inline" placeholder="新增分类,回车确认" maxlength="8">
+            <button class="btn btn-small" id="btn-del-cat" title="删除当前选中的分类(该分类下的图片将变为未分类)">🗑️ 删除分类</button>
             <button class="btn btn-primary" id="btn-add-photo">📷 上传款式图</button>
           </div>
           <div id="gallery-grid" class="gallery-grid"></div>

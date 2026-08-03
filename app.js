@@ -1073,6 +1073,19 @@
       }
     });
     $("#gallery-save").addEventListener("click", saveGallery);
+    $("#btn-del-cat").addEventListener("click", () => {
+      const cat = $("#gallery-cat-filter").value;
+      if (!cat) { toast("请先在分类下拉框里选中要删除的分类"); return; }
+      const count = state.galleryItems.filter((g) => g.category === cat).length;
+      askDelete(`确定删除分类「${cat}」吗?该分类下的 ${count} 张款式图将变为「未分类」。`, () => {
+        state.galleryCats = state.galleryCats.filter((c) => c !== cat);
+        state.galleryItems.forEach((g) => { if (g.category === cat) g.category = ""; });
+        save();
+        fillGalleryCatOptions();
+        renderGallery();
+        toast("分类已删除");
+      });
+    });
     $("#gallery-new-cat").addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();

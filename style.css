@@ -143,7 +143,8 @@ body {
   text-align: center; padding: 16px 10px;
   transition: transform .15s;
 }
-.stat-card:hover { transform: translateY(-2px); }
+.stat-card.clickable { cursor: pointer; }
+.stat-card.clickable:hover { transform: translateY(-2px); border-color: #f0c4d0; }
 .stat-ico {
   width: 42px; height: 42px; margin: 0 auto 8px; border-radius: 50%;
   background: var(--brand-soft); display: flex; align-items: center; justify-content: center;
@@ -347,24 +348,26 @@ input:focus, textarea:focus { outline: 2px solid #f3c6d2; border-color: var(--br
 /* ============ 移动端适配 ============ */
 @media (max-width: 760px) {
   .layout { flex-direction: column; }
+  /* 手机端:左侧固定窄导航栏 */
   .sidebar {
-    width: 100%; height: auto; position: fixed; left: 0; right: 0; bottom: 0; top: auto;
-    flex-direction: row; align-items: center; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-    background: #fff; border-top: 1px solid var(--line); border-right: none;
-    z-index: 60; box-shadow: 0 -2px 12px rgba(217, 138, 158, .15);
+    width: 64px; height: 100vh; position: fixed; left: 0; top: 0; bottom: auto;
+    flex-direction: column; align-items: stretch; padding: 14px 4px 10px;
+    background: #fff; border-right: 1px solid var(--line);
+    z-index: 60; box-shadow: 2px 0 12px rgba(217, 138, 158, .12);
   }
   .side-logo { display: none; }
-  .side-nav { flex-direction: row; gap: 2px; overflow-x: auto; flex: 1; }
+  .side-nav { flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
   .side-nav::-webkit-scrollbar { display: none; }
   .nav-btn {
-    flex-direction: column; gap: 2px; padding: 6px 10px; font-size: .72rem;
+    flex-direction: column; gap: 2px; padding: 9px 2px; font-size: .62rem;
     border-radius: 10px; text-align: center; flex-shrink: 0;
   }
-  .nav-ico { font-size: 1.15rem; width: auto; }
+  .nav-ico { font-size: 1.2rem; width: auto; }
   .nav-btn.active { background: var(--brand-soft); color: var(--brand-dark); box-shadow: none; }
-  .side-foot { display: none; }
+  .side-foot { flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .side-foot .btn { padding: 6px 2px; font-size: .62rem; min-height: 36px; }
 
-  .main { padding-bottom: 66px; }
+  .main { margin-left: 64px; padding-bottom: 30px; }
   .topbar { padding: 12px 16px; }
   .content { padding: 16px 14px 40px; }
 
