@@ -1083,11 +1083,14 @@ memos: (data.memos || base.memos).map(normalizeMemo),
   /* ---------- 导出 / 导入 ---------- */
   function exportData() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = "烘焙工作台备份-" + todayStr() + ".json";
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
     toast("已导出备份文件");
   }
 
@@ -1371,8 +1374,8 @@ memos: (data.memos || base.memos).map(normalizeMemo),
     });
 
     // 导出 / 导入
-    $("#btn-export").addEventListener("click", exportData);
-    $("#btn-import").addEventListener("click", () => $("#import-file").click());
+    ["btn-export", "btn-export-mob"].forEach((id) => $("#" + id).addEventListener("click", exportData));
+    ["btn-import", "btn-import-mob"].forEach((id) => $("#" + id).addEventListener("click", () => $("#import-file").click()));
     $("#import-file").addEventListener("change", (e) => {
       if (e.target.files[0]) importData(e.target.files[0]);
       e.target.value = "";
